@@ -22,16 +22,17 @@ block content
       h2.text-center.title-style 設施說明
       .card.my-2
         .card-body.py-2
-          .d-flex
-            h5.card-title 魔法星際飛車(雲霄飛車)
-            span.ml-auto $30
+          h5.card-title 魔法星際飛車(雲霄飛車)
           .row
-            .col-4.px-1.d-flex.flex-column
+            .col-3.px-1.d-flex.flex-column
+              img.icon.mx-auto(src="https://i.imgur.com/8KaViR1.png")
+              small.text-red.mt-1.mx-auto $30
+            .col-3.px-1.d-flex.flex-column
               img.icon.mx-auto(src="https://i.imgur.com/ZWY7IeG.png")
-              small.text-muted.mt-1.mx-auto 2 分鐘
-            .col-4.px-1.d-flex.flex-column
+              small.text-muted.mt-1.mx-auto 2 mins
+            .col-3.px-1.d-flex.flex-column
               img.icon.mx-auto(src="https://i.imgur.com/ezH8JCH.png")
-              small.text-muted.mt-1.mx-auto 110 公分↑
+              small.text-muted.mt-1.mx-auto 110 cm↑
           template(v-if="switched.game1")
             p.text-gray.mt-3.mb-0 以科幻造型的雲霄飛車，迴旋於軌道上體驗刺激的速度感。
             h5.text-blue.mt-3.mb-0 免費搭乘：
@@ -47,13 +48,14 @@ block content
             .col.px-2: button.btn.btn-block.btn-outline-primary.mt-2(type="button") 移除設施
       .card.my-2
         .card-body.py-2
-          .d-flex
-            h5.card-title 銀河號(單軌列車)
-            span.ml-auto $20
+          h5.card-title 銀河號(單軌列車)
           .row
-            .col-4.px-1.d-flex.flex-column
+            .col-3.px-1.d-flex.flex-column
+              img.icon.mx-auto(src="https://i.imgur.com/8KaViR1.png")
+              small.text-red.mt-1.mx-auto $20
+            .col-3.px-1.d-flex.flex-column
               img.icon.mx-auto(src="https://i.imgur.com/ZWY7IeG.png")
-              small.text-muted.mt-1.mx-auto 3-4 分鐘
+              small.text-muted.mt-1.mx-auto 3-4 mins
           template(v-if="switched.game4")
             p.text-gray.mt-3.mb-0 環繞園區的單軌列車，行程中可一覽園區美景。
             h5.text-blue.mt-3.mb-0 免費搭乘：
@@ -71,19 +73,20 @@ block content
             .col.px-2: button.btn.btn-block.btn-outline-primary.mt-2(type="button") 移除設施
       .card.my-2
         .card-body.py-2
-          .d-flex
-            h5.card-title 宇宙迴旋(輻射飛椅)
-            span.ml-auto $20
+          h5.card-title 宇宙迴旋(輻射飛椅)
           .row
-            .col-4.px-1.d-flex.flex-column
+            .col-3.px-1.d-flex.flex-column
+              img.icon.mx-auto(src="https://i.imgur.com/8KaViR1.png")
+              small.text-red.mt-1.mx-auto $20
+            .col-3.px-1.d-flex.flex-column
               img.icon.mx-auto(src="https://i.imgur.com/ZWY7IeG.png")
-              small.text-muted.mt-1.mx-auto 2-3 分鐘
-            .col-4.px-1.d-flex.flex-column
+              small.text-muted.mt-1.mx-auto 2-3 mins
+            .col-3.px-1.d-flex.flex-column
               img.icon.mx-auto(src="https://i.imgur.com/ezH8JCH.png")
-              small.text-muted.mt-1.mx-auto 95 公分↑
-            .col-4.px-1.d-flex.flex-column
+              small.text-muted.mt-1.mx-auto 95 cm↑
+            .col-3.px-1.d-flex.flex-column
               img.icon.mx-auto(src="https://i.imgur.com/qT9ffsQ.png")
-              small.text-muted.mt-1.mx-auto 100 公斤↓
+              small.text-muted.mt-1.mx-auto 100 kg↓
           template(v-if="switched.game6")
             p.text-gray.mt-3.mb-0 以八大行星繞行太陽旋轉為主題的輻射飛椅，座椅以各行星彩繪為造型，旋轉時之離心力，如置身於銀河中神祕氛圍!
             h5.text-blue.mt-3.mb-0 免費搭乘：
@@ -98,8 +101,8 @@ block content
             .col.px-2: button.btn.btn-block.btn-outline-primary.mt-2(type="button", @click="switched.game6 = !switched.game6") 詳細內容
             .col.px-2: button.btn.btn-block.btn-outline-primary.mt-2(type="button") 移除設施
       .row.mx-n1
-        .col.px-2: a.btn.btn-lg.btn-block.btn-outline-primary.mt-2(href="page-2-1.html") 上一步
-        .col.px-2: a.btn.btn-lg.btn-block.btn-outline-primary.mt-2(href="page-2-2-2.html") 下一步
+        .col.px-2: a.btn.btn-lg.btn-block.btn-primary.mt-2(href="page-2-1.html") 上一步
+        .col.px-2: a.btn.btn-lg.btn-block.btn-primary.mt-2(href="page-2-2-2.html") 下一步
 
 block script
   script.
