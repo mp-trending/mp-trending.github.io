@@ -20,8 +20,8 @@ block content
           .card-text.d-flex.justify-content-between.text-secondary
             .list-style-tcap {{ game.time }}
             span 成人 {{ game.normal }} / 兒童 {{ game.kid }}
-      .mt-auto
-        button.btn.btn-lg.btn-primary.btn-block.flex-fill.mt-2(@click="btnAdd") 設施預約
+      .my-3
+        button.btn.btn-lg.btn-primary.btn-block(@click="btnAdd") 設施預約
         .d-flex.mx-n1
           a.btn.btn-lg.btn-primary.flex-fill.mx-1.mt-2(href="page-1-4.html") 預約紀錄
           button.btn.btn-lg.btn-primary.flex-fill.mx-1.mt-2(type="button", @click="btnShare") 分享行程
