@@ -14,7 +14,7 @@ block content
       h1.mt-5.mb-0.text-primary {{ order.date }}
       .text-primary 入園人數：{{ order.total }}
       .mt-5 已預約設施 #[span.badge.badge-pill.badge-info {{ order?.games?.length }} 項]
-      .card.border-white.shadow-sm.mt-2(v-for="(game, gId) of order.games" :key="gId", @click="btnDel(gId)")
+      .card.border-white.shadow-sm.my-2(v-for="(game, gId) of order.games" :key="gId", @click="btnDel(gId)")
         .card-body.d-flex.flex-column.justify-content-between.p-2
           h4.text-primary {{ game.name }}
           .card-text.d-flex.justify-content-between.text-secondary

@@ -12,7 +12,7 @@ block content
     .container.py-3.d-flex.flex-column.min-vh-100
       h2.text-center.title-style 設施預約
       template(v-for="(game, i) of h.selected" :key="game")
-        .card.my-2(v-if="game === 'game1' || game === 'game4' || game === 'game6'")
+        .card.my-2.card-shadow(v-if="game === 'game1' || game === 'game4' || game === 'game6'")
           .card-body
             h5.card-title.text-blue(v-if="game === 'game1'") 魔法星際飛車(雲霄飛車)
             h5.card-title.text-blue(v-if="game === 'game4'") 銀河號(單軌列車)
@@ -38,8 +38,8 @@ block content
                     input.form-control.text-center(type="number", min="0", max="10", v-model.number="form[i].kid")
                     .input-group-append: button.btn.btn-primary(type="button", @click="form[i].kid++", :disabled="form[i].kid > 9"): i.fa.fa-plus
       .row.mx-n1
-        .col.px-2: a.btn.btn-lg.btn-block.btn-primary.mt-2(href="page-2-2-1.html") 上一步
-        .col.px-2: button.btn.btn-lg.btn-block.btn-primary.mt-2(@click="btnSuccess") 新增預約
+        .col-4.px-1: a.btn.btn-block.btn-outline-primary.mt-2(href="page-2-2-1.html") 回上一頁
+        .col-8.px-1: button.btn.btn-block.btn-primary.mt-2(@click="btnSuccess") 新增預約
 
 block script
   script.
@@ -77,17 +77,18 @@ block script
             else if (game === 'game6') name = '宇宙迴旋(輻射飛椅)'
             else return
             games.push({ name, ...form[i] })
-            return `<li class="list-group-item p-0 py-2"><h5 class="text-blue">${name}</h5><div class="text-gray-light">入園日期：${tmp.date}<br>場次時間：${form[i].time}<br>成人：${form[i].normal} 位<br>兒童：${form[i].kid} 位</div></li>`
+            return `<li class="list-group-item p-0 py-2"><h5 class="text-blue">${name}</h5><div class="text-gray-light">場次時間：${form[i].time}<br>成人：${form[i].normal} 位<br>兒童：${form[i].kid} 位</div></li>`
           })).join('')
 
-          await Swal.fire({
-            html: `<ul class="list-group list-group-flush">${listItems}</ul>`,
-            icon: 'success',
-            title: '<h2 class="title-style">設施預約成功</h2>',
-            customClass: { content: 'text-left' },
-          })
           tmp.games = games
           this.$set(this.h, 'selected', [])
+          await Swal.fire({
+            confirmButtonText: '設施清單',
+            customClass: { content: 'text-left' },
+            html: `<p class="title-style text-center">入園日期：${tmp.date}</p><ul class="list-group list-group-flush">${listItems}</ul>`,
+            icon: 'success',
+            title: `<h2 class="title-style m-0">設施預約成功</h2>`,
+          })
           location.href = 'page-1-9.html?' + window.httpBuildQuery({ date })
         },
       },
