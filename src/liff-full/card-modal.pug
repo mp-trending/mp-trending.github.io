@@ -44,7 +44,7 @@ block style
 block content
   #app.container.my-4.text-monospace(v-cloak, style="max-width: 562.5px")
     .activity-item(v-if="page === 'init'")
-      h3.text-center {{item.card_title}}
+      h4.mb-4.text-center {{item.card_title}}
       img.mb-2.w-100(:src="item.cover_image", :key="'img-mission'")
       template(v-if="toggle.status")
         .card
