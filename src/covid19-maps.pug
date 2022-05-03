@@ -82,6 +82,16 @@ block script
       })
       return value => schema.validateAsync(value, { stripUnknown: true })
     })()
+    const verifyTcmRow = (() => {
+      const schema = joi.object({
+        address: joi.string().empty('').optional(),
+        lat: joi.number().min(21).max(28).empty('0').required(),
+        lng: joi.number().min(117).max(123).empty('0').required(),
+        name: joi.string().empty('').required(),
+        phone: joi.string().empty('').optional(),
+      })
+      return value => schema.validateAsync(value, { stripUnknown: true })
+    })()
     const verifyOpensRow = (() => {
       const schema = joi.object({
         id: joi.string().required(),
@@ -133,17 +143,19 @@ block script
         },
         async init () {
           this.showLoading('讀取中', '請稍候')
-          const testkits = await this.getTestkits()
-          //- const [opens, testkits] = await Promise.all([
-          //-   this.getOpens(),
-          //-   this.getTestkits(),
-          //- ])
+          const [nricms, tcms, testkits] = await Promise.all([
+            this.getNricm(),
+            this.getTcm(),
+            this.getTestkits(),
+          ])
 
-          await this.renderMap({ testkits })
+          await this.renderMap({ testkits, tcms, nricms })
           Swal.close()
         },
-        async renderMap ({ testkits }) {
+        async renderMap ({ testkits, tcms, nricms }) {
           console.log(testkits)
+          console.log(tcms)
+          console.log(nricms)
           const { map } = window
           // Add marker
           const ICON = L.Icon.extend({
@@ -154,35 +166,57 @@ block script
             },
           })
           const icons = {
+            nricm: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
+            tcm: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
             testkit: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
           }
 
-          const testkitPopup = testkit => {
-            const toGoogleMap = testkit => {
-              const baseUrl = 'https://www.google.com/maps/dir/?'
-              const query = {
-                api: 1,
-                destination: `${testkit.lat},${testkit.lng}`,
-                travelmode: 'walking',
-              }
-              return baseUrl + window.httpBuildQuery(query)
+          const toTel = phone => `tel:${phone.replace(/^[(]*(\d+)[)\s-]*(\d+)$/, '$1-$2')}`
+          const toGoogleMap = i => {
+            const baseUrl = 'https://www.google.com/maps/dir/?'
+            const query = {
+              api: 1,
+              destination: `${i.lat},${i.lng}`,
+              travelmode: 'walking',
             }
-            const toTel = phone => `tel:${phone.replace(/^[(]*(\d+)[)\s-]*(\d+)$/, '$1-$2')}`
-            return `<h6 class="mb-0 text-center font-weight-bold">${testkit.name}</h6><hr class="my-2">` +
-            '<div class="text-monospace">' +
-            `<p class="mt-0 mb-2">快篩試劑：${testkit.label}<span class="badge badge-pill badge-success ml-1">${testkit.count}</span></p>` +
-            `<p class="mt-0 mb-2">電話：<a href="${toTel(testkit.phone)}">${testkit.phone}</a></p>` +
-            `<p class="mt-0 mb-2">地址：${testkit.address}</p>` +
-            `<p class="mt-0 mb-2">更新時間：${testkit.updated_at}</p>` +
-            `<a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(testkit)}", target="_blank">` +
-            'Google 導航</a></div>'
+            return baseUrl + window.httpBuildQuery(query)
           }
 
-          const testkitLayer = L.layerGroup(_.map(testkits, testkit => {
-            return L.marker([testkit.lat, testkit.lng], { icon: icons.testkit }).bindPopup(testkitPopup(testkit))
+          const itemPopup = (item, type) => {
+            if (type === 'testkit') { // 快篩試劑
+              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              <div class="text-monospace">
+                <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
+                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
+                <p class="mt-0 mb-2"><strong>更新時間：</strong>${item.updated_at}</p>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+              </div>`
+            } else if (type === 'tcm') { // 中醫視訊看診
+              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              <div class="text-monospace">
+                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+              </div>`
+            } else if (type === 'nricm') { // 中醫清冠一號
+              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              <div class="text-monospace">
+                <p class="mt-0 mb-2 text-center text-danger font-weight-bold">可看診領清冠一號（自費）</p>
+                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+              </div>`
+            }
+          }
+          const toLayer = (items, type) => L.layerGroup(_.map(items, item => {
+            return L.marker([item.lat, item.lng], { icon: icons[type] }).bindPopup(itemPopup(item, type))
           })).addTo(map)
+
           L.control.layers(null, {
-            快篩試劑: testkitLayer,
+            快篩試劑: toLayer(testkits, 'testkit'),
+            '清冠一號(中醫)': toLayer(nricms, 'nricm'),
+            '視訊診療(中醫)': toLayer(tcms, 'tcm'),
           }, { position: 'bottomright', collapsed: false }).addTo(map)
 
           window.Lcontrol.start()
@@ -205,7 +239,7 @@ block script
           const rows = await this.getCsv('https://data.nhi.gov.tw/Datasets/Download.ashx?rid=A21030000I-D03001-001&l=https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
-              row = await verifyTestkitsRow({
+              return await verifyTestkitsRow({
                 address: row['醫事機構地址'],
                 count: row['快篩試劑截至目前結餘存貨數量'],
                 id: row['醫事機構代碼'],
@@ -217,7 +251,30 @@ block script
                 ps: row['備註'],
                 updated_at: row['來源資料時間'],
               })
-              return row
+            } catch (err) {
+              return null
+            }
+          })))
+        },
+        async getTcm () {
+          //- const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv')
+
+          //- DEV 用
+          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=172121403&single=true&output=csv')
+          return _.filter(await Promise.all(_.map(rows, async row => {
+            try {
+              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
+            } catch (err) {
+              return null
+            }
+          })))
+        },
+        async getNricm () {
+          //- DEV 用
+          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=172121403&single=true&output=csv')
+          return _.filter(await Promise.all(_.map(rows, async row => {
+            try {
+              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
             } catch (err) {
               return null
             }
