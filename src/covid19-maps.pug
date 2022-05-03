@@ -187,7 +187,7 @@ block script
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
-                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                ${ item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : '' }
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <p class="mt-0 mb-2"><strong>更新時間：</strong>${item.updated_at}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
@@ -195,7 +195,7 @@ block script
             } else if (type === 'tcm') { // 中醫視訊看診
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
-                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                ${ item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : '' }
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
@@ -203,7 +203,7 @@ block script
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2 text-center text-danger font-weight-bold">可看診領清冠一號（自費）</p>
-                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                ${ item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : '' }
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
@@ -257,10 +257,7 @@ block script
           })))
         },
         async getTcm () {
-          //- const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv')
-
-          //- DEV 用
-          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=172121403&single=true&output=csv')
+          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv')
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
               return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
@@ -270,8 +267,7 @@ block script
           })))
         },
         async getNricm () {
-          //- DEV 用
-          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=172121403&single=true&output=csv')
+          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv')
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
               return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
