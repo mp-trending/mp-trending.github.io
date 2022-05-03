@@ -1,0 +1,315 @@
+//- extends layout/default
+
+block beforehtml
+  -
+    const title = 'Covid19 快篩試劑及中醫診所地圖'
+    const description = 'Covid19 快篩試劑及中醫診所地圖'
+
+block style
+  meta(name="description" content=description)
+  meta(property="og:description", content=description)
+  link(rel="stylesheet", href="https://unpkg.com/bootstrap@4/dist/css/bootstrap.min.css")
+  link(rel="stylesheet", href="https://unpkg.com/font-awesome@4/css/font-awesome.min.css")
+  link(rel="stylesheet", href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css")
+  link(rel="stylesheet", href="https://unpkg.com/leaflet@1/dist/leaflet.css")
+  style
+    :sass
+      [v-cloak]
+        display: none
+      html, body, #app, #map
+        height: 100%
+        width: 100vw
+      #app
+        position: relative
+      .unselectable
+        -webkit-user-select: none
+        -moz-user-select: none
+        -ms-user-select: none
+        user-select: none
+      .leaflet-popup-content
+        font-size: 14px
+        h6
+          font-size: 18px
+        .table-station
+          th
+            white-space: nowrap
+          td
+            text-align: right
+      .location-circle-tooltip
+        &.leaflet-tooltip
+          background: transparent
+          border: none
+          box-shadow: none
+        &.leaflet-tooltip-top:before
+          border: none
+block content
+  #app(v-cloak, :class="{'hide-circle': mapZoom < 12 }")
+    #map
+
+block script
+  script(crossorigin="anonymous", src="https://unpkg.com/@hapi/joi@17/dist/joi-browser.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/axios/dist/axios.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/dayjs.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/plugin/duration.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/plugin/utc.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/jquery@3/dist/jquery.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/leaflet@1/dist/leaflet.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/leaflet.markercluster@1/dist/leaflet.markercluster.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/lodash@4/lodash.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/papaparse@5/papaparse.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/popper.js@1/dist/umd/popper.min.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/qs@6/dist/qs.js")
+  script(crossorigin="anonymous", src="https://unpkg.com/sweetalert2@11")
+  script(crossorigin="anonymous", src="https://unpkg.com/vue@2/dist/vue.min.js")
+  script(crossorigin="anonymous", src="https://static.line-scdn.net/liff/edge/2/sdk.js")
+  //- bootstrap require jquery and pupper
+  script(crossorigin="anonymous", src="https://unpkg.com/bootstrap@4/dist/js/bootstrap.min.js")
+  script.
+    //- var vConsole = new VConsole()
+    const verifyTestkitsRow = (() => {
+      const schema = joi.object({
+        address: joi.string().empty('').optional(),
+        count: joi.number().integer().min(0).default(0).empty(''),
+        id: joi.string().required(),
+        label: joi.string().empty('').required(),
+        lat: joi.number().min(21).max(28).empty('0').required(),
+        lng: joi.number().min(117).max(123).empty('0').required(),
+        name: joi.string().empty('').required(),
+        phone: joi.string().empty('').optional(),
+        ps: joi.string().empty('').optional(),
+        updated_at: joi.string().regex(/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}/).required(),
+      })
+      return value => schema.validateAsync(value, { stripUnknown: true })
+    })()
+    const verifyTcmRow = (() => {
+      const schema = joi.object({
+        address: joi.string().empty('').optional(),
+        lat: joi.number().min(21).max(28).empty('0').required(),
+        lng: joi.number().min(117).max(123).empty('0').required(),
+        name: joi.string().empty('').required(),
+        phone: joi.string().empty('').optional(),
+      })
+      return value => schema.validateAsync(value, { stripUnknown: true })
+    })()
+    const verifyOpensRow = (() => {
+      const schema = joi.object({
+        id: joi.string().required(),
+        open: joi.string().regex(/^[01]{21}$/).required(),
+      })
+      return value => schema.validateAsync(value, { stripUnknown: true })
+    })()
+
+    let map
+    window.parseJsonOrDefault = (str, defaultValue) => {
+      try {
+        if (!_.isString(str) && !_.isBuffer(str)) return defaultValue
+        return JSON.parse(str)
+      } catch (err) {
+        return defaultValue
+      }
+    }
+    window.httpBuildQuery = obj => Qs.stringify(obj, { arrayFormat: 'brackets' })
+    window.sleep = t => new Promise(resolve => { setTimeout(resolve, t) })
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        mapZoom: 15,
+        opens: null,
+        visible: {},
+      },
+      async mounted () {
+        try {
+          this.initMap()
+          this.init()
+        } catch (err) {}
+      },
+      methods: {
+        async initMap () {
+          const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attribution">CARTO</a>',
+          })
+          map = window.map = L.map('map', {
+            center: [24.93592, 121.7095],
+            zoom: 15,
+            layers: [tiles],
+            tap: false, //- https://github.com/Leaflet/Leaflet/issues/3184
+          })
+          window.Lcontrol = L.control.locate({
+            position: 'topleft',
+            strings: { title: '定位目前所在位置', popup: '定位目前所在位置' },
+          }).addTo(map)
+          map.on('zoomend', () => { this.mapZoom = map.getZoom() })
+        },
+        async init () {
+          this.showLoading('讀取中', '請稍候')
+          const [nricms, tcms, testkits] = await Promise.all([
+            this.getNricm(),
+            this.getTcm(),
+            this.getTestkits(),
+          ])
+
+          await this.renderMap({ testkits, tcms, nricms })
+          Swal.close()
+        },
+        async renderMap ({ testkits, tcms, nricms }) {
+          console.log(testkits)
+          console.log(tcms)
+          console.log(nricms)
+          const { map } = window
+          // Add marker
+          const ICON = L.Icon.extend({
+            options: {
+              iconAnchor: [20, 37],
+              iconSize: [40, 40],
+              popupAnchor: [0, -40],
+            },
+          })
+          const icons = {
+            nricm: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
+            tcm: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
+            testkit: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
+          }
+
+          const toTel = phone => `tel:${phone.replace(/^[(]*(\d+)[)\s-]*(\d+)$/, '$1-$2')}`
+          const toGoogleMap = i => {
+            const baseUrl = 'https://www.google.com/maps/dir/?'
+            const query = {
+              api: 1,
+              destination: `${i.lat},${i.lng}`,
+              travelmode: 'walking',
+            }
+            return baseUrl + window.httpBuildQuery(query)
+          }
+
+          const itemPopup = (item, type) => {
+            if (type === 'testkit') { // 快篩試劑
+              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              <div class="text-monospace">
+                <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
+                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
+                <p class="mt-0 mb-2"><strong>更新時間：</strong>${item.updated_at}</p>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+              </div>`
+            } else if (type === 'tcm') { // 中醫視訊看診
+              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              <div class="text-monospace">
+                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+              </div>`
+            } else if (type === 'nricm') { // 中醫清冠一號
+              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              <div class="text-monospace">
+                <p class="mt-0 mb-2 text-center text-danger font-weight-bold">可看診領清冠一號（自費）</p>
+                <p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>
+                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+              </div>`
+            }
+          }
+          const toLayer = (items, type) => L.layerGroup(_.map(items, item => {
+            return L.marker([item.lat, item.lng], { icon: icons[type] }).bindPopup(itemPopup(item, type))
+          })).addTo(map)
+
+          L.control.layers(null, {
+            快篩試劑: toLayer(testkits, 'testkit'),
+            '清冠一號(中醫)': toLayer(nricms, 'nricm'),
+            '視訊診療(中醫)': toLayer(tcms, 'tcm'),
+          }, { position: 'bottomright', collapsed: false }).addTo(map)
+
+          window.Lcontrol.start()
+        },
+        async getOpens () {
+          const rows = await this.getCsv('https://data.nhi.gov.tw/resource/Opendata/%E5%85%A8%E6%B0%91%E5%81%A5%E5%BA%B7%E4%BF%9D%E9%9A%AA%E7%89%B9%E7%B4%84%E9%99%A2%E6%89%80%E5%9B%BA%E5%AE%9A%E6%9C%8D%E5%8B%99%E6%99%82%E6%AE%B5.csv')
+          return _.keyBy(_.filter(await Promise.all(_.map(rows, async row => {
+            try {
+              row = await verifyOpensRow({
+                id: row['醫事機構代碼'],
+                open: row['看診星期'].replace(/N/g, 1).replace(/Y/g, 0),
+              })
+              return row
+            } catch (err) {
+              return null
+            }
+          }))), 'id')
+        },
+        async getTestkits () {
+          const rows = await this.getCsv('https://data.nhi.gov.tw/Datasets/Download.ashx?rid=A21030000I-D03001-001&l=https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
+          return _.filter(await Promise.all(_.map(rows, async row => {
+            try {
+              return await verifyTestkitsRow({
+                address: row['醫事機構地址'],
+                count: row['快篩試劑截至目前結餘存貨數量'],
+                id: row['醫事機構代碼'],
+                label: row['廠牌項目'],
+                lat: row['緯度'],
+                lng: row['經度'],
+                name: row['醫事機構名稱'],
+                phone: row['醫事機構電話'],
+                ps: row['備註'],
+                updated_at: row['來源資料時間'],
+              })
+            } catch (err) {
+              return null
+            }
+          })))
+        },
+        async getTcm () {
+          //- const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv')
+
+          //- DEV 用
+          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=172121403&single=true&output=csv')
+          return _.filter(await Promise.all(_.map(rows, async row => {
+            try {
+              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
+            } catch (err) {
+              return null
+            }
+          })))
+        },
+        async getNricm () {
+          //- DEV 用
+          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=172121403&single=true&output=csv')
+          return _.filter(await Promise.all(_.map(rows, async row => {
+            try {
+              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
+            } catch (err) {
+              return null
+            }
+          })))
+        },
+        async addCircle ({ lat, lng, className, fillColor, fillOpacity, radius }) {
+          L.circle([lat, lng], {
+            className,
+            stroke: false,
+            fillColor,
+            fillOpacity,
+            radius,
+          }).addTo(map)
+        },
+        async getCsv (url) {
+          const csv = _.trim(_.get(await axios.get(url, {
+            params: { cachebust: _.floor(new Date() / 3e4) },
+          }), 'data'))
+          return _.get(Papa.parse(csv, {
+            encoding: 'utf8',
+            header: true,
+          }), 'data', [])
+        },
+        param (key, defaultValue) {
+          const val = new URL(location).searchParams.get(key)
+          return _.isNil(val) ? defaultValue : val
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+      },
+    })
