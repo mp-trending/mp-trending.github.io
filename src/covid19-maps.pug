@@ -8,10 +8,8 @@ block beforehtml
 block style
   meta(name="description" content=description)
   meta(property="og:description", content=description)
-  link(rel="stylesheet", href="https://unpkg.com/bootstrap@4/dist/css/bootstrap.min.css")
-  link(rel="stylesheet", href="https://unpkg.com/font-awesome@4/css/font-awesome.min.css")
-  link(rel="stylesheet", href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css")
   link(rel="stylesheet", href="https://unpkg.com/leaflet@1/dist/leaflet.css")
+  link(rel="stylesheet", href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css")
   style
     :sass
       [v-cloak]
@@ -35,25 +33,11 @@ block content
 
 block script
   script(crossorigin="anonymous", src="https://unpkg.com/@hapi/joi@17/dist/joi-browser.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/axios/dist/axios.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/dayjs.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/plugin/duration.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/plugin/utc.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/jquery@3/dist/jquery.min.js")
   script(crossorigin="anonymous", src="https://unpkg.com/leaflet@1/dist/leaflet.js")
   script(crossorigin="anonymous", src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js")
   script(crossorigin="anonymous", src="https://unpkg.com/leaflet.markercluster@1/dist/leaflet.markercluster.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/lodash@4/lodash.min.js")
   script(crossorigin="anonymous", src="https://unpkg.com/papaparse@5/papaparse.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/popper.js@1/dist/umd/popper.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/qs@6/dist/qs.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/sweetalert2@11")
-  script(crossorigin="anonymous", src="https://unpkg.com/vue@2/dist/vue.min.js")
-  script(crossorigin="anonymous", src="https://static.line-scdn.net/liff/edge/2/sdk.js")
-  //- bootstrap require jquery and pupper
-  script(crossorigin="anonymous", src="https://unpkg.com/bootstrap@4/dist/js/bootstrap.min.js")
   script.
-    //- var vConsole = new VConsole()
     const verifyTestkitsRow = (() => {
       const schema = joi.object({
         address: joi.string().empty('').optional(),
@@ -69,7 +53,7 @@ block script
       })
       return value => schema.validateAsync(value, { stripUnknown: true })
     })()
-    const verifyTcmTelemedicineRow = (() => {
+    const verifyTcmRow = (() => {
       const schema = joi.object({
         address: joi.string().empty('').optional(),
         lat: joi.number().min(21).max(28).empty('0').required(),
@@ -79,23 +63,8 @@ block script
       })
       return value => schema.validateAsync(value, { stripUnknown: true })
     })()
-    const verifyOpensRow = (() => {
-      const schema = joi.object({
-        id: joi.string().required(),
-        open: joi.string().regex(/^[01]{21}$/).required(),
-      })
-      return value => schema.validateAsync(value, { stripUnknown: true })
-    })()
 
     let map
-    window.parseJsonOrDefault = (str, defaultValue) => {
-      try {
-        if (!_.isString(str) && !_.isBuffer(str)) return defaultValue
-        return JSON.parse(str)
-      } catch (err) {
-        return defaultValue
-      }
-    }
     window.httpBuildQuery = obj => Qs.stringify(obj, { arrayFormat: 'brackets' })
     window.sleep = t => new Promise(resolve => { setTimeout(resolve, t) })
     window.vm = new Vue({
@@ -116,7 +85,7 @@ block script
           const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attribution">CARTO</a>',
           })
-          map = window.map = L.map('map', {
+          map = L.map('map', {
             center: [24.93592, 121.7095],
             zoom: 15,
             layers: [tiles],
@@ -141,7 +110,6 @@ block script
         },
         async renderMap ({ testkits, tcmTelemedicines, tcms }) {
           console.log({ testkits, tcmTelemedicines, tcms })
-          const { map } = window
           // Add marker
           const ICON = L.Icon.extend({
             options: {
@@ -213,20 +181,6 @@ block script
 
           window.Lcontrol.start()
         },
-        async getOpens () {
-          const rows = await this.getCsv('https://data.nhi.gov.tw/resource/Opendata/%E5%85%A8%E6%B0%91%E5%81%A5%E5%BA%B7%E4%BF%9D%E9%9A%AA%E7%89%B9%E7%B4%84%E9%99%A2%E6%89%80%E5%9B%BA%E5%AE%9A%E6%9C%8D%E5%8B%99%E6%99%82%E6%AE%B5.csv')
-          return _.keyBy(_.filter(await Promise.all(_.map(rows, async row => {
-            try {
-              row = await verifyOpensRow({
-                id: row['醫事機構代碼'],
-                open: row['看診星期'].replace(/N/g, 1).replace(/Y/g, 0),
-              })
-              return row
-            } catch (err) {
-              return null
-            }
-          }))), 'id')
-        },
         async getTestkits () {
           const rows = await this.getCsv('https://data.nhi.gov.tw/Datasets/Download.ashx?rid=A21030000I-D03001-001&l=https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
           return _.filter(await Promise.all(_.map(rows, async row => {
@@ -254,7 +208,7 @@ block script
           const rows = await this.getCsv(csv)
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
-              return await verifyTcmTelemedicineRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
+              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
             } catch (err) {
               console.log(`解析格式錯誤: ${row}, 錯誤訊息: ${err}`)
               console.error(err)
