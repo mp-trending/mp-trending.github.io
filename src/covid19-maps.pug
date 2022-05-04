@@ -21,29 +21,16 @@ block style
         width: 100vw
       #app
         position: relative
-      .unselectable
-        -webkit-user-select: none
-        -moz-user-select: none
-        -ms-user-select: none
-        user-select: none
       .leaflet-popup-content
         font-size: 14px
         h6
           font-size: 18px
-        .table-station
+        .table-popup
           th
+            padding: 0.3rem 0rem
             white-space: nowrap
-          td
-            text-align: right
-      .location-circle-tooltip
-        &.leaflet-tooltip
-          background: transparent
-          border: none
-          box-shadow: none
-        &.leaflet-tooltip-top:before
-          border: none
 block content
-  #app(v-cloak, :class="{'hide-circle': mapZoom < 12 }")
+  #app(v-cloak)
     #map
 
 block script
@@ -82,7 +69,7 @@ block script
       })
       return value => schema.validateAsync(value, { stripUnknown: true })
     })()
-    const verifyTcmRow = (() => {
+    const verifyTcmTelemedicineRow = (() => {
       const schema = joi.object({
         address: joi.string().empty('').optional(),
         lat: joi.number().min(21).max(28).empty('0').required(),
@@ -143,19 +130,17 @@ block script
         },
         async init () {
           this.showLoading('讀取中', '請稍候')
-          const [nricms, tcms, testkits] = await Promise.all([
-            this.getNricm(),
-            this.getTcm(),
+          const [tcms, tcmTelemedicines, testkits] = await Promise.all([
+            this.getTcm('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv'),
+            this.getTcm('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
             this.getTestkits(),
           ])
 
-          await this.renderMap({ testkits, tcms, nricms })
+          await this.renderMap({ testkits, tcmTelemedicines, tcms })
           Swal.close()
         },
-        async renderMap ({ testkits, tcms, nricms }) {
-          console.log(testkits)
-          console.log(tcms)
-          console.log(nricms)
+        async renderMap ({ testkits, tcmTelemedicines, tcms }) {
+          console.log({ testkits, tcmTelemedicines, tcms })
           const { map } = window
           // Add marker
           const ICON = L.Icon.extend({
@@ -166,9 +151,9 @@ block script
             },
           })
           const icons = {
-            nricm: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
-            tcm: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
-            testkit: new ICON({ iconUrl: 'https://i.imgur.com/EJPfleu.png' }),
+            tcm: new ICON({ iconUrl: 'https://i.imgur.com/vb793UL.png' }),
+            tcmTelemedicine: new ICON({ iconUrl: 'https://i.imgur.com/rtVuRXz.png' }),
+            testkit: new ICON({ iconUrl: 'https://i.imgur.com/GzDccrd.png' }),
           }
 
           const toTel = phone => `tel:${phone.replace(/^[(]*(\d+)[)\s-]*(\d+)$/, '$1-$2')}`
@@ -187,23 +172,27 @@ block script
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
-                ${ item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : '' }
-                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
-                <p class="mt-0 mb-2"><strong>更新時間：</strong>${item.updated_at}</p>
+                <table class="my-0 table table-sm table-borderless table-popup text-monospace">
+                  ${item.phone ? `<tr><th>電話：</th><td><a href="${toTel(item.phone)}">${item.phone}</a></td></tr>` : ''}
+                  <tr><th>地址：</th><td>${item.address}</td></tr>
+                  ${item.ps ? `<tr><th>備註：</th><td>${item.ps}</td></tr>` : ''}
+                  <tr><th>更新：</th><td>${item.updated_at}</td></tr>
+                </table>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
-            } else if (type === 'tcm') { // 中醫視訊看診
+            } else if (type === 'tcmTelemedicine') { // 中醫視訊看診
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
-                ${ item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : '' }
+                <p class="mt-0 mb-2 text-center text-danger font-weight-bold">視訊診療，經醫師診斷開立清冠一號(公費)</p>
+                ${item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : ''}
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
-            } else if (type === 'nricm') { // 中醫清冠一號
+            } else if (type === 'tcm') { // 中醫清冠一號
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
-                <p class="mt-0 mb-2 text-center text-danger font-weight-bold">可看診領清冠一號（自費）</p>
-                ${ item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : '' }
+                <p class="mt-0 mb-2 text-center text-danger font-weight-bold">看診後可開立清冠一號（自費）</p>
+                ${item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : ''}
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
@@ -213,10 +202,13 @@ block script
             return L.marker([item.lat, item.lng], { icon: icons[type] }).bindPopup(itemPopup(item, type))
           })).addTo(map)
 
+          const testkitLayer = toLayer(testkits, 'testkit')
+          const tcmLayer = toLayer(tcms, 'tcm')
+          const tcmTelemedicineLayer = toLayer(tcmTelemedicines, 'tcmTelemedicine')
           L.control.layers(null, {
-            快篩試劑: toLayer(testkits, 'testkit'),
-            '清冠一號(中醫)': toLayer(nricms, 'nricm'),
-            '視訊診療(中醫)': toLayer(tcms, 'tcm'),
+            新冠肺炎快篩試劑銷售: testkitLayer,
+            '清冠一號自費(中醫)': tcmLayer,
+            '視訊診療/清冠一號公費(中醫)': tcmTelemedicineLayer,
           }, { position: 'bottomright', collapsed: false }).addTo(map)
 
           window.Lcontrol.start()
@@ -252,26 +244,20 @@ block script
                 updated_at: row['來源資料時間'],
               })
             } catch (err) {
+              console.error(err)
               return null
             }
           })))
         },
-        async getTcm () {
-          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv')
+        async getTcm (csv) {
+          if (!csv) return []
+          const rows = await this.getCsv(csv)
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
-              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
+              return await verifyTcmTelemedicineRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
             } catch (err) {
-              return null
-            }
-          })))
-        },
-        async getNricm () {
-          const rows = await this.getCsv('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv')
-          return _.filter(await Promise.all(_.map(rows, async row => {
-            try {
-              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
-            } catch (err) {
+              console.log(`解析格式錯誤: ${row}, 錯誤訊息: ${err}`)
+              console.error(err)
               return null
             }
           })))
@@ -293,10 +279,6 @@ block script
             encoding: 'utf8',
             header: true,
           }), 'data', [])
-        },
-        param (key, defaultValue) {
-          const val = new URL(location).searchParams.get(key)
-          return _.isNil(val) ? defaultValue : val
         },
         showLoading (title, text) {
           Swal.fire({
