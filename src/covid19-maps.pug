@@ -8,10 +8,10 @@ block beforehtml
 block style
   meta(name="description" content=description)
   meta(property="og:description", content=description)
-  link(rel="stylesheet", href="https://unpkg.com/bootstrap@4/dist/css/bootstrap.min.css")
-  link(rel="stylesheet", href="https://unpkg.com/font-awesome@4/css/font-awesome.min.css")
-  link(rel="stylesheet", href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css")
   link(rel="stylesheet", href="https://unpkg.com/leaflet@1/dist/leaflet.css")
+  link(rel="stylesheet", href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css")
+  link(rel="stylesheet", href="https://unpkg.com/leaflet.markercluster@1/dist/MarkerCluster.css")
+  link(rel="stylesheet", href="https://unpkg.com/leaflet.markercluster@1/dist/MarkerCluster.Default.css")
   style
     :sass
       [v-cloak]
@@ -21,6 +21,19 @@ block style
         width: 100vw
       #app
         position: relative
+      #layer-visible
+        background-color: white
+        padding: .3rem .5rem
+        position: absolute
+        right: 10px
+        top: 10px
+      .custom-control-label
+        font-size: 14px
+      .unselectable
+        -webkit-user-select: none
+        -moz-user-select: none
+        -ms-user-select: none
+        user-select: none
       .leaflet-popup-content
         font-size: 14px
         h6
@@ -29,31 +42,41 @@ block style
           th
             padding: 0.3rem 0rem
             white-space: nowrap
+      .location-circle-tooltip
+        &.leaflet-tooltip
+          background: transparent
+          border: none
+          box-shadow: none
+        &.leaflet-tooltip-top:before
+          border: none
+      .marker-cluster-testkits
+        background-color: rgba(255, 158, 21, 0.5)
+        >div
+          background-color: rgba(255, 158, 21, 0.5)
+      .marker-cluster-tcms
+        background-color: rgba(110, 204, 57, 0.6)
+        >div
+          background-color: rgba(110, 204, 57, 0.6)
+      .marker-cluster-tcmTelemedicines
+        background-color: rgba(240, 194, 12, 0.6)
+        >div
+          background-color: rgba(240, 194, 12, 0.6)
 block content
   #app(v-cloak)
+    #layer-visible.leaflet-bar.leaflet-control.unselectable.text-monospace(v-if="_.keys(visible).length")
+      .d-flex.custom-control.custom-switch(v-for="(v, k) in visible", :key="k", v-if="open")
+        input.custom-control-input(type="checkbox", v-model="visible[k]", :id="`switch-layer-${k}`")
+        label.custom-control-label.my-ayto(:for="`switch-layer-${k}`") {{ nameMap[k] }}
+      .d-flex.border-top.mt-1.pt-1(@click="open = !open"): small.mx-auto {{ open ? '收合' : '展開' }}
     #map
 
 block script
   script(crossorigin="anonymous", src="https://unpkg.com/@hapi/joi@17/dist/joi-browser.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/axios/dist/axios.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/dayjs.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/plugin/duration.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/dayjs@1/plugin/utc.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/jquery@3/dist/jquery.min.js")
   script(crossorigin="anonymous", src="https://unpkg.com/leaflet@1/dist/leaflet.js")
   script(crossorigin="anonymous", src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js")
   script(crossorigin="anonymous", src="https://unpkg.com/leaflet.markercluster@1/dist/leaflet.markercluster.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/lodash@4/lodash.min.js")
   script(crossorigin="anonymous", src="https://unpkg.com/papaparse@5/papaparse.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/popper.js@1/dist/umd/popper.min.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/qs@6/dist/qs.js")
-  script(crossorigin="anonymous", src="https://unpkg.com/sweetalert2@11")
-  script(crossorigin="anonymous", src="https://unpkg.com/vue@2/dist/vue.min.js")
-  script(crossorigin="anonymous", src="https://static.line-scdn.net/liff/edge/2/sdk.js")
-  //- bootstrap require jquery and pupper
-  script(crossorigin="anonymous", src="https://unpkg.com/bootstrap@4/dist/js/bootstrap.min.js")
   script.
-    //- var vConsole = new VConsole()
     const verifyTestkitsRow = (() => {
       const schema = joi.object({
         address: joi.string().empty('').optional(),
@@ -69,7 +92,7 @@ block script
       })
       return value => schema.validateAsync(value, { stripUnknown: true })
     })()
-    const verifyTcmTelemedicineRow = (() => {
+    const verifyTcmRow = (() => {
       const schema = joi.object({
         address: joi.string().empty('').optional(),
         lat: joi.number().min(21).max(28).empty('0').required(),
@@ -79,30 +102,20 @@ block script
       })
       return value => schema.validateAsync(value, { stripUnknown: true })
     })()
-    const verifyOpensRow = (() => {
-      const schema = joi.object({
-        id: joi.string().required(),
-        open: joi.string().regex(/^[01]{21}$/).required(),
-      })
-      return value => schema.validateAsync(value, { stripUnknown: true })
-    })()
 
     let map
-    window.parseJsonOrDefault = (str, defaultValue) => {
-      try {
-        if (!_.isString(str) && !_.isBuffer(str)) return defaultValue
-        return JSON.parse(str)
-      } catch (err) {
-        return defaultValue
-      }
-    }
     window.httpBuildQuery = obj => Qs.stringify(obj, { arrayFormat: 'brackets' })
     window.sleep = t => new Promise(resolve => { setTimeout(resolve, t) })
     window.vm = new Vue({
       el: '#app',
       data: {
+        nameMap: {
+          tcms: '清冠一號自費(中醫)',
+          tcmTelemedicines: '視訊診療/清冠一號公費(中醫)',
+          testkits: '新冠肺炎快篩試劑銷售',
+        },
         mapZoom: 15,
-        opens: null,
+        open: true,
         visible: {},
       },
       async mounted () {
@@ -116,7 +129,7 @@ block script
           const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attribution">CARTO</a>',
           })
-          map = window.map = L.map('map', {
+          map = L.map('map', {
             center: [24.93592, 121.7095],
             zoom: 15,
             layers: [tiles],
@@ -131,17 +144,17 @@ block script
         async init () {
           this.showLoading('讀取中', '請稍候')
           const [tcms, tcmTelemedicines, testkits] = await Promise.all([
-            this.getTcm('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv'),
-            this.getTcm('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
+            this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv'),
+            this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
             this.getTestkits(),
           ])
 
           await this.renderMap({ testkits, tcmTelemedicines, tcms })
           Swal.close()
         },
-        async renderMap ({ testkits, tcmTelemedicines, tcms }) {
-          console.log({ testkits, tcmTelemedicines, tcms })
-          const { map } = window
+        async renderMap (datas) {
+          console.log(datas)
+          const saved = window.parseJsonOrDefault(localStorage.getItem('covid19-maps-visible'), {})
           // Add marker
           const ICON = L.Icon.extend({
             options: {
@@ -151,9 +164,9 @@ block script
             },
           })
           const icons = {
-            tcm: new ICON({ iconUrl: 'https://i.imgur.com/vb793UL.png' }),
-            tcmTelemedicine: new ICON({ iconUrl: 'https://i.imgur.com/rtVuRXz.png' }),
-            testkit: new ICON({ iconUrl: 'https://i.imgur.com/GzDccrd.png' }),
+            tcms: new ICON({ iconUrl: 'https://i.imgur.com/vb793UL.png' }),
+            tcmTelemedicines: new ICON({ iconUrl: 'https://i.imgur.com/rtVuRXz.png' }),
+            testkits: new ICON({ iconUrl: 'https://i.imgur.com/GzDccrd.png' }),
           }
 
           const toTel = phone => `tel:${phone.replace(/^[(]*(\d+)[)\s-]*(\d+)$/, '$1-$2')}`
@@ -168,7 +181,7 @@ block script
           }
 
           const itemPopup = (item, type) => {
-            if (type === 'testkit') { // 快篩試劑
+            if (type === 'testkits') { // 快篩試劑
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
@@ -180,7 +193,7 @@ block script
                 </table>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
-            } else if (type === 'tcmTelemedicine') { // 中醫視訊看診
+            } else if (type === 'tcmTelemedicines') { // 中醫視訊看診
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2 text-center text-danger font-weight-bold">視訊診療，經醫師診斷開立清冠一號(公費)</p>
@@ -188,7 +201,7 @@ block script
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
-            } else if (type === 'tcm') { // 中醫清冠一號
+            } else if (type === 'tcms') { // 中醫清冠一號
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2 text-center text-danger font-weight-bold">看診後可開立清冠一號（自費）</p>
@@ -198,34 +211,36 @@ block script
               </div>`
             }
           }
-          const toLayer = (items, type) => L.layerGroup(_.map(items, item => {
-            return L.marker([item.lat, item.lng], { icon: icons[type] }).bindPopup(itemPopup(item, type))
-          })).addTo(map)
-
-          const testkitLayer = toLayer(testkits, 'testkit')
-          const tcmLayer = toLayer(tcms, 'tcm')
-          const tcmTelemedicineLayer = toLayer(tcmTelemedicines, 'tcmTelemedicine')
-          L.control.layers(null, {
-            新冠肺炎快篩試劑銷售: testkitLayer,
-            '清冠一號自費(中醫)': tcmLayer,
-            '視訊診療/清冠一號公費(中醫)': tcmTelemedicineLayer,
-          }, { position: 'bottomright', collapsed: false }).addTo(map)
-
+          _.each(datas, async (items, type) => {
+            const icon = icons[type]
+            const className = `marker-cluster marker-cluster-${type}`
+            const cluster = L.markerClusterGroup({
+              chunkedLoading: true,
+              disableClusteringAtZoom: 15,
+              spiderfyOnMaxZoom: false,
+              iconCreateFunction: cluster => {
+                return new L.DivIcon({
+                  className,
+                  html: `<div><span>${cluster.getChildCount()}</span></div>`,
+                  iconSize: new L.Point(40, 40),
+                })
+              },
+            }).addLayers(_.map(items, item => {
+              const marker = L.marker([item.lat, item.lng], { icon })
+                .bindPopup(itemPopup(item, type), { minWidth: 200 })
+              return marker
+            }))
+            this.$set(this.visible, type, false)
+            this.$watch(`visible.${type}`, (newVal, oldVal) => {
+              const hasLayer = map.hasLayer(cluster)
+              if (hasLayer ^ newVal) {
+                map[newVal ? 'addLayer' : 'removeLayer'](cluster)
+                localStorage.setItem('covid19-maps-visible', JSON.stringify(this.visible))
+              }
+            })
+            if (_.get(saved, type, true)) this.$set(this.visible, type, true)
+          })
           window.Lcontrol.start()
-        },
-        async getOpens () {
-          const rows = await this.getCsv('https://data.nhi.gov.tw/resource/Opendata/%E5%85%A8%E6%B0%91%E5%81%A5%E5%BA%B7%E4%BF%9D%E9%9A%AA%E7%89%B9%E7%B4%84%E9%99%A2%E6%89%80%E5%9B%BA%E5%AE%9A%E6%9C%8D%E5%8B%99%E6%99%82%E6%AE%B5.csv')
-          return _.keyBy(_.filter(await Promise.all(_.map(rows, async row => {
-            try {
-              row = await verifyOpensRow({
-                id: row['醫事機構代碼'],
-                open: row['看診星期'].replace(/N/g, 1).replace(/Y/g, 0),
-              })
-              return row
-            } catch (err) {
-              return null
-            }
-          }))), 'id')
         },
         async getTestkits () {
           const rows = await this.getCsv('https://data.nhi.gov.tw/Datasets/Download.ashx?rid=A21030000I-D03001-001&l=https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
@@ -249,12 +264,12 @@ block script
             }
           })))
         },
-        async getTcm (csv) {
+        async getTcms (csv) {
           if (!csv) return []
           const rows = await this.getCsv(csv)
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
-              return await verifyTcmTelemedicineRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
+              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
             } catch (err) {
               console.log(`解析格式錯誤: ${row}, 錯誤訊息: ${err}`)
               console.error(err)
