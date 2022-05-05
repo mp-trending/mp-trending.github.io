@@ -224,7 +224,7 @@ block script
           }
 
           if (type !== 'testkits') return icons[type]
-          if (_.get(item, 'count', 0)) return icons.empty
+          if (!_.get(item, 'count', 0)) return icons.empty
           return icons.testkits
         },
         async getTestkits () {
