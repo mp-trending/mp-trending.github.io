@@ -94,6 +94,7 @@ block script
       },
       async mounted () {
         try {
+          gtag('event', 'screen_view', { screen_name: 'Covid 19 快篩試劑及中醫診所地圖' })
           this.initMap()
           this.init()
         } catch (err) {}
@@ -147,8 +148,11 @@ block script
           }
 
           const itemPopup = (item, type) => {
+            let html
+            const container = $('<div />')
+            container.on('click', '.onclick-maps', (e) => { console.log('onclick maps', e) })
             if (type === 'testkits') { // 快篩試劑
-              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
                 <table class="mb-2 table table-sm table-borderless table-popup text-monospace">
@@ -157,25 +161,28 @@ block script
                   ${item.ps ? `<tr><th>備註：</th><td>${item.ps}</td></tr>` : ''}
                   <tr><th>更新：</th><td>${item.updated_at || '未知'}</td></tr>
                 </table>
-                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
             } else if (type === 'tcmTelemedicines') { // 中醫視訊看診
-              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2 text-center text-danger font-weight-bold">視訊診療，經醫師診斷開立清冠一號(公費)</p>
                 ${item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : ''}
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
-                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
             } else if (type === 'tcms') { // 中醫清冠一號
-              return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+              html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2 text-center text-danger font-weight-bold">看診後可開立清冠一號（自費）</p>
                 ${item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : ''}
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
-                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
             }
+            container.on('click', '.onclick-maps', () => { gtag('event', 'click', { link_id: `${type}_${item.name}` }) })
+            container.html(html)
+            return container[0]
           }
           _.each(datas, async (items, type) => {
             const className = `marker-cluster marker-cluster-${type}`
@@ -193,6 +200,7 @@ block script
             }).addLayers(_.map(items, item => {
               const marker = L.marker([item.lat, item.lng], { icon: this.getIcon(item, type) })
                 .bindPopup(itemPopup(item, type), { minWidth: 200 })
+                .on('click', () => { gtag('event', 'icon_click', { store_type_name: `${type}_${item.name}` }) })
               return marker
             }))
             this.$set(this.visible, type, false)
