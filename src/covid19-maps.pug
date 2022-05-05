@@ -77,32 +77,6 @@ block script
   script(crossorigin="anonymous", src="https://unpkg.com/leaflet.markercluster@1/dist/leaflet.markercluster.js")
   script(crossorigin="anonymous", src="https://unpkg.com/papaparse@5/papaparse.min.js")
   script.
-    const verifyTestkitsRow = (() => {
-      const schema = joi.object({
-        address: joi.string().empty('').optional(),
-        count: joi.number().integer().min(0).default(0).empty(''),
-        id: joi.string().required(),
-        label: joi.string().empty('').required(),
-        lat: joi.number().min(21).max(28).empty('0').required(),
-        lng: joi.number().min(117).max(123).empty('0').required(),
-        name: joi.string().empty('').required(),
-        phone: joi.string().empty('').optional(),
-        ps: joi.string().empty('').optional(),
-        updated_at: joi.string().regex(/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}/).required(),
-      })
-      return value => schema.validateAsync(value, { stripUnknown: true })
-    })()
-    const verifyTcmRow = (() => {
-      const schema = joi.object({
-        address: joi.string().empty('').optional(),
-        lat: joi.number().min(21).max(28).empty('0').required(),
-        lng: joi.number().min(117).max(123).empty('0').required(),
-        name: joi.string().empty('').required(),
-        phone: joi.string().empty('').optional(),
-      })
-      return value => schema.validateAsync(value, { stripUnknown: true })
-    })()
-
     let map
     window.httpBuildQuery = obj => Qs.stringify(obj, { arrayFormat: 'brackets' })
     window.sleep = t => new Promise(resolve => { setTimeout(resolve, t) })
@@ -130,7 +104,7 @@ block script
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attribution">CARTO</a>',
           })
           map = L.map('map', {
-            center: [24.93592, 121.7095],
+            center: [24.1591423, 120.6396484], // 微程式資訊
             zoom: 15,
             layers: [tiles],
             tap: false, //- https://github.com/Leaflet/Leaflet/issues/3184
@@ -143,31 +117,23 @@ block script
         },
         async init () {
           this.showLoading('讀取中', '請稍候')
-          const [tcms, tcmTelemedicines, testkits] = await Promise.all([
+          const [tcms, tcmTelemedicines, testkits, testkitsAll] = await Promise.all([
             this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv'),
             this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
             this.getTestkits(),
+            this.getTestkitsAll(),
           ])
 
-          await this.renderMap({ testkits, tcmTelemedicines, tcms })
+          await this.renderMap({
+            tcms,
+            tcmTelemedicines,
+            testkits: _.uniqBy([...testkits, ...testkitsAll], 'id'),
+          })
           Swal.close()
         },
         async renderMap (datas) {
           console.log(datas)
           const saved = window.parseJsonOrDefault(localStorage.getItem('covid19-maps-visible'), {})
-          // Add marker
-          const ICON = L.Icon.extend({
-            options: {
-              iconAnchor: [20, 37],
-              iconSize: [40, 40],
-              popupAnchor: [0, -40],
-            },
-          })
-          const icons = {
-            tcms: new ICON({ iconUrl: 'https://i.imgur.com/k8FGfkB.png' }),
-            tcmTelemedicines: new ICON({ iconUrl: 'https://i.imgur.com/Dty9gl7.png' }),
-            testkits: new ICON({ iconUrl: 'https://i.imgur.com/cRX1iko.png' }),
-          }
 
           const toTel = phone => `tel:${phone.replace(/^[(]*(\d+)[)\s-]*(\d+)$/, '$1-$2')}`
           const toGoogleMap = i => {
@@ -185,11 +151,11 @@ block script
               return `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
-                <table class="my-0 table table-sm table-borderless table-popup text-monospace">
+                <table class="mb-2 table table-sm table-borderless table-popup text-monospace">
                   ${item.phone ? `<tr><th>電話：</th><td><a href="${toTel(item.phone)}">${item.phone}</a></td></tr>` : ''}
                   <tr><th>地址：</th><td>${item.address}</td></tr>
                   ${item.ps ? `<tr><th>備註：</th><td>${item.ps}</td></tr>` : ''}
-                  <tr><th>更新：</th><td>${item.updated_at}</td></tr>
+                  <tr><th>更新：</th><td>${item.updated_at || '未知'}</td></tr>
                 </table>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
@@ -212,7 +178,6 @@ block script
             }
           }
           _.each(datas, async (items, type) => {
-            const icon = icons[type]
             const className = `marker-cluster marker-cluster-${type}`
             const cluster = L.markerClusterGroup({
               chunkedLoading: true,
@@ -226,7 +191,7 @@ block script
                 })
               },
             }).addLayers(_.map(items, item => {
-              const marker = L.marker([item.lat, item.lng], { icon })
+              const marker = L.marker([item.lat, item.lng], { icon: this.getIcon(item, type) })
                 .bindPopup(itemPopup(item, type), { minWidth: 200 })
               return marker
             }))
@@ -242,11 +207,31 @@ block script
           })
           window.Lcontrol.start()
         },
+        getIcon (item, type) {
+          // Add marker
+          const ICON = L.Icon.extend({
+            options: {
+              iconAnchor: [20, 37],
+              iconSize: [40, 40],
+              popupAnchor: [0, -40],
+            },
+          })
+          const icons = {
+            empty: new ICON({ iconUrl: 'https://i.imgur.com/0l2UUsV.png' }),
+            tcms: new ICON({ iconUrl: 'https://i.imgur.com/k8FGfkB.png' }),
+            tcmTelemedicines: new ICON({ iconUrl: 'https://i.imgur.com/Dty9gl7.png' }),
+            testkits: new ICON({ iconUrl: 'https://i.imgur.com/cRX1iko.png' }),
+          }
+
+          if (type !== 'testkits') return icons[type]
+          if (_.get(item, 'count', 0)) return icons.empty
+          return icons.testkits
+        },
         async getTestkits () {
-          const rows = await this.getCsv('https://data.nhi.gov.tw/Datasets/Download.ashx?rid=A21030000I-D03001-001&l=https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
+          const rows = await this.getCsv('https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
-              return await verifyTestkitsRow({
+              row = {
                 address: row['醫事機構地址'],
                 count: row['快篩試劑截至目前結餘存貨數量'],
                 id: row['醫事機構代碼'],
@@ -257,7 +242,19 @@ block script
                 phone: row['醫事機構電話'],
                 ps: row['備註'],
                 updated_at: row['來源資料時間'],
-              })
+              }
+              return await joi.object({
+                address: joi.string().empty('').optional(),
+                count: joi.number().integer().min(0).default(0).empty(''),
+                id: joi.string().required(),
+                label: joi.string().empty('').required(),
+                lat: joi.number().min(21).max(28).empty('0').required(),
+                lng: joi.number().min(117).max(123).empty('0').required(),
+                name: joi.string().empty('').required(),
+                phone: joi.string().empty('').optional(),
+                ps: joi.string().empty('').optional(),
+                updated_at: joi.string().regex(/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}/).required(),
+              }).validateAsync(row, { stripUnknown: true })
             } catch (err) {
               console.error(err)
               return null
@@ -269,7 +266,14 @@ block script
           const rows = await this.getCsv(csv)
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
-              return await verifyTcmRow(_.pick(row, ['address', 'lat', 'lng', 'name', 'phone']))
+              row = _.pick(row, ['address', 'lat', 'lng', 'name', 'phone'])
+              return await joi.object({
+                address: joi.string().empty('').optional(),
+                lat: joi.number().min(21).max(28).empty('0').required(),
+                lng: joi.number().min(117).max(123).empty('0').required(),
+                name: joi.string().empty('').required(),
+                phone: joi.string().empty('').optional(),
+              }).validateAsync(row, { stripUnknown: true })
             } catch (err) {
               console.log(`解析格式錯誤: ${row}, 錯誤訊息: ${err}`)
               console.error(err)
@@ -277,18 +281,24 @@ block script
             }
           })))
         },
-        async addCircle ({ lat, lng, className, fillColor, fillOpacity, radius }) {
-          L.circle([lat, lng], {
-            className,
-            stroke: false,
-            fillColor,
-            fillOpacity,
-            radius,
-          }).addTo(map)
+        async getTestkitsAll () {
+          const rows = await this.getCsv('https://taichunmin.idv.tw/covid19-testkit-maps-crawler/stores0430.csv')
+          return _.map(rows, row => ({
+            address: row.addr,
+            count: 0,
+            id: row.id,
+            label: row.testkit,
+            lat: row.lat,
+            lng: row.lng,
+            name: row.name,
+            phone: row.tel,
+            ps: row.notice,
+            total: row.amount,
+          }))
         },
-        async getCsv (url) {
+        async getCsv (url, cachetime = 3e4) {
           const csv = _.trim(_.get(await axios.get(url, {
-            params: { cachebust: _.floor(new Date() / 3e4) },
+            params: { cachebust: _.floor(Date.now() / cachetime) },
           }), 'data'))
           return _.get(Papa.parse(csv, {
             encoding: 'utf8',
