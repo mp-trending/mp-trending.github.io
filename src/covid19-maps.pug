@@ -50,17 +50,17 @@ block style
         &.leaflet-tooltip-top:before
           border: none
       .marker-cluster-testkits
-        background-color: rgba(255, 158, 21, 0.5)
+        background-color: rgba(248, 208, 121, 0.6)
         >div
-          background-color: rgba(255, 158, 21, 0.5)
+          background-color: rgba(248, 208, 121, 0.6)
       .marker-cluster-tcms
-        background-color: rgba(110, 204, 57, 0.6)
+        background-color: rgba(113, 191, 122, 0.6)
         >div
-          background-color: rgba(110, 204, 57, 0.6)
+          background-color: rgba(113, 191, 122, 0.6)
       .marker-cluster-tcmTelemedicines
-        background-color: rgba(240, 194, 12, 0.6)
+        background-color: rgba(117, 202, 229, 0.6)
         >div
-          background-color: rgba(240, 194, 12, 0.6)
+          background-color: rgba(117, 202, 229, 0.6)
 block content
   #app(v-cloak)
     #layer-visible.leaflet-bar.leaflet-control.unselectable.text-monospace(v-if="_.keys(visible).length")
@@ -164,9 +164,9 @@ block script
             },
           })
           const icons = {
-            tcms: new ICON({ iconUrl: 'https://i.imgur.com/vb793UL.png' }),
-            tcmTelemedicines: new ICON({ iconUrl: 'https://i.imgur.com/rtVuRXz.png' }),
-            testkits: new ICON({ iconUrl: 'https://i.imgur.com/GzDccrd.png' }),
+            tcms: new ICON({ iconUrl: 'https://i.imgur.com/k8FGfkB.png' }),
+            tcmTelemedicines: new ICON({ iconUrl: 'https://i.imgur.com/Dty9gl7.png' }),
+            testkits: new ICON({ iconUrl: 'https://i.imgur.com/cRX1iko.png' }),
           }
 
           const toTel = phone => `tel:${phone.replace(/^[(]*(\d+)[)\s-]*(\d+)$/, '$1-$2')}`
