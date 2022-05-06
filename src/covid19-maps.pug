@@ -118,15 +118,15 @@ block script
         },
         async init () {
           this.showLoading('讀取中', '請稍候')
-          const [tcms, tcmTelemedicines, testkits, testkitsAll] = await Promise.all([
-            this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv'),
+          const [tcmTelemedicines, testkits, testkitsAll] = await Promise.all([
+            //- this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv'),
             this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
             this.getTestkits(),
             this.getTestkitsAll(),
           ])
 
           await this.renderMap({
-            tcms,
+            //- tcms,
             tcmTelemedicines,
             testkits: _.uniqBy([...testkits, ...testkitsAll], 'id'),
           })
