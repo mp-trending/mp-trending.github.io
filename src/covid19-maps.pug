@@ -150,7 +150,6 @@ block script
           const itemPopup = (item, type) => {
             let html
             const container = $('<div />')
-            container.on('click', '.onclick-maps', (e) => { console.log('onclick maps', e) })
             if (type === 'testkits') { // 快篩試劑
               html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
