@@ -11,6 +11,7 @@ module.exports = {
   ],
   globals: {
     _: 'readonly',
+    $: 'readonly',
     axios: 'readonly',
     CryptoJS: 'readonly',
     dayjs: 'readonly',

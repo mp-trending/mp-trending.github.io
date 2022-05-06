@@ -1,0 +1,9 @@
+//- https://developers.google.com/gtagjs/reference/event
+//- https://developers.google.com/gtagjs/reference/ga4-events#share
+script(async, src=`https://www.googletagmanager.com/gtag/js?id=G-V7N3FVMHRM`)
+script.
+  window.dataLayer = window.dataLayer || []
+  function gtag () { window.dataLayer.push(arguments) }
+  gtag('js', new Date())
+  gtag('config', 'G-V7N3FVMHRM', { send_page_view: false })
+  //- TODO: gtag('set', 'user_properties')
