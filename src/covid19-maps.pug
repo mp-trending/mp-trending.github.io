@@ -2,12 +2,17 @@ extends /layout/default
 
 block beforehtml
   -
-    const title = 'COVID-19 中醫視訊診療地圖'
-    const description = 'COVID-19 中醫視訊診療地圖'
+    const title = 'COVID-19 中醫視訊診療及快篩地圖'
+    const description = 'COVID-19 中醫視訊診療及快篩地圖'
 
 block style
   meta(name="description" content=description)
+  link(rel="icon" href="https://i.imgur.com/zw85148.png" type="image/x-icon")
+  link(rel="shortcut icon" href="https://i.imgur.com/zw85148.png")
   meta(property="og:description", content=description)
+  meta(property="og:image:height", content="256")
+  meta(property="og:image:width", content="256")
+  meta(property="og:image", content='https://i.imgur.com/zw85148.png')
   link(rel="stylesheet", href="https://unpkg.com/leaflet@1/dist/leaflet.css")
   link(rel="stylesheet", href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css")
   link(rel="stylesheet", href="https://unpkg.com/leaflet.markercluster@1/dist/MarkerCluster.css")
@@ -27,6 +32,8 @@ block style
         position: absolute
         right: 10px
         top: 10px
+      .img-logo
+        height: 40px
       .custom-control-label
         font-size: 14px
       .unselectable
@@ -53,10 +60,6 @@ block style
         background-color: rgba(248, 208, 121, 0.6)
         >div
           background-color: rgba(248, 208, 121, 0.6)
-      .marker-cluster-tcms
-        background-color: rgba(113, 191, 122, 0.6)
-        >div
-          background-color: rgba(113, 191, 122, 0.6)
       .marker-cluster-tcmTelemedicines
         background-color: rgba(117, 202, 229, 0.6)
         >div
@@ -67,7 +70,11 @@ block content
       .d-flex.custom-control.custom-switch(v-for="(v, k) in visible", :key="k", v-if="open")
         input.custom-control-input(type="checkbox", v-model="visible[k]", :id="`switch-layer-${k}`")
         label.custom-control-label.my-ayto(:for="`switch-layer-${k}`") {{ nameMap[k] }}
-      .d-flex.border-top.mt-1.pt-1(@click="open = !open"): small.mx-auto {{ open ? '收合' : '展開' }}
+      .d-flex.flex-column.border-top.mt-1.pt-1(v-if="open")
+        .d-flex.mx-auto
+          img.mx-2.img-logo(src="https://i.imgur.com/q7z7Ofg.png", @click="btnLogo('mp')")
+          img.mx-2.img-logo(src="https://i.imgur.com/Z9dDtNJ.png", @click="btnLogo('tcm')")
+      .d-flex: small.mx-auto(@click="open = !open") {{ open ? '收合' : '展開' }}
     #map
 
 block script
@@ -84,7 +91,6 @@ block script
       el: '#app',
       data: {
         nameMap: {
-          tcms: '清冠一號自費(中醫)',
           tcmTelemedicines: '視訊診療/清冠一號公費(中醫)',
           testkits: '新冠肺炎快篩試劑銷售',
         },
@@ -119,18 +125,23 @@ block script
         async init () {
           this.showLoading('讀取中', '請稍候')
           const [tcmTelemedicines, testkits, testkitsAll] = await Promise.all([
-            //- this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=883665019&single=true&output=csv'),
             this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
             this.getTestkits(),
             this.getTestkitsAll(),
           ])
 
           await this.renderMap({
-            //- tcms,
             tcmTelemedicines,
             testkits: _.uniqBy([...testkits, ...testkitsAll], 'id'),
           })
           Swal.close()
+        },
+        btnLogo (type) {
+          gtag('event', 'logo_click', { company: type })
+          let url
+          if (type === 'mp') url = 'https://www.program.com.tw/'
+          if (type === 'tcm') url = 'https://www.new-tccma.org.tw/'
+          location.href = url
         },
         async renderMap (datas) {
           console.log(datas)
@@ -166,14 +177,6 @@ block script
               html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2 text-center text-danger font-weight-bold">視訊診療，經醫師診斷開立清冠一號(公費)</p>
-                ${item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : ''}
-                <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
-                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
-              </div>`
-            } else if (type === 'tcms') { // 中醫清冠一號
-              html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
-              <div class="text-monospace">
-                <p class="mt-0 mb-2 text-center text-danger font-weight-bold">看診後可開立清冠一號（自費）</p>
                 ${item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : ''}
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
@@ -225,7 +228,6 @@ block script
           })
           const icons = {
             empty: new ICON({ iconUrl: 'https://i.imgur.com/0l2UUsV.png' }),
-            tcms: new ICON({ iconUrl: 'https://i.imgur.com/k8FGfkB.png' }),
             tcmTelemedicines: new ICON({ iconUrl: 'https://i.imgur.com/Dty9gl7.png' }),
             testkits: new ICON({ iconUrl: 'https://i.imgur.com/cRX1iko.png' }),
           }
