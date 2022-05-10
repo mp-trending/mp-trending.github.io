@@ -64,6 +64,10 @@ block style
         background-color: rgba(117, 202, 229, 0.6)
         >div
           background-color: rgba(117, 202, 229, 0.6)
+      .icon-info
+        bottom: -38px
+        position: absolute
+        right: 5px
 block content
   #app(v-cloak)
     #layer-visible.leaflet-bar.leaflet-control.unselectable.text-monospace(v-if="_.keys(visible).length")
@@ -74,7 +78,10 @@ block content
         .d-flex.mx-auto
           img.mx-2.img-logo(src="https://i.imgur.com/q7z7Ofg.png", @click="btnLogo('mp')")
           img.mx-2.img-logo(src="https://i.imgur.com/Z9dDtNJ.png", @click="btnLogo('tcm')")
-      .d-flex: small.mx-auto(@click="open = !open") {{ open ? '收合' : '展開' }}
+          img.mx-2.img-logo(src="https://i.imgur.com/hMSeLCE.png", @click="btnLogo('twtm')")
+      .d-flex
+        small.mx-auto(@click="open = !open") {{ open ? '收合' : '展開' }}
+        i.fa.fa-info-circle.fa-2x.text-primary.icon-info(@click="btnInfo")
     #map
 
 block script
@@ -97,6 +104,9 @@ block script
         mapZoom: 15,
         open: true,
         visible: {},
+        info: {
+          version: 'v2.2',
+        },
       },
       async mounted () {
         try {
@@ -141,7 +151,14 @@ block script
           let url
           if (type === 'mp') url = 'https://www.program.com.tw/'
           if (type === 'tcm') url = 'https://www.new-tccma.org.tw/'
+          if (type === 'twtm') url = 'http://www.twtm.tw/'
           location.href = url
+        },
+        async btnInfo () {
+          await Swal.fire({
+            title: '相關資訊',
+            text: `版本：${this.info.version}`,
+          })
         },
         async renderMap (datas) {
           console.log(datas)
@@ -227,9 +244,9 @@ block script
             },
           })
           const icons = {
-            empty: new ICON({ iconUrl: 'https://i.imgur.com/0l2UUsV.png' }),
+            empty: new ICON({ iconUrl: 'https://i.imgur.com/jH9Ll7g.png' }),
             tcmTelemedicines: new ICON({ iconUrl: 'https://i.imgur.com/Dty9gl7.png' }),
-            testkits: new ICON({ iconUrl: 'https://i.imgur.com/cRX1iko.png' }),
+            testkits: new ICON({ iconUrl: 'https://i.imgur.com/RRD8neI.png' }),
           }
 
           if (type !== 'testkits') return icons[type]
