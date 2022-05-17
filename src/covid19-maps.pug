@@ -177,7 +177,9 @@ block script
           location.href = url
         },
         async btnInfo () {
-          this.$set(this.h, 'contentVersion', this.info.contentVersion)
+          const { contentVersion, version } = this.info
+          gtag('event', 'info_click', { contentVersion, version })
+          this.$set(this.h, 'contentVersion', contentVersion)
           await Swal.fire({
             title: '相關資訊',
             html: `<div class="text-monospace text-left">
@@ -186,7 +188,7 @@ block script
                 <li><small>中華民國中醫師公會全國聯合會<a href="tel:'02-29594939'">(02)2959-4939</a></small></li>
                 <li><small><a href="https://data.nhi.gov.tw/">健康保險資料開放服務</a></small></li>
               </ul>
-              <p class="mt-0 mb-2"><strong>版本：</strong>${this.info.version}</p>
+              <p class="mt-0 mb-2"><strong>版本：</strong>${version}</p>
             </div>`,
           })
         },
