@@ -68,6 +68,14 @@ block style
         bottom: -38px
         position: absolute
         right: 5px
+      .red-dot
+        background-color: red
+        border-radius: 99px
+        height: 8px
+        position: absolute
+        right: 0px
+        top: 2px
+        width: 8px
 block content
   #app(v-cloak)
     #layer-visible.leaflet-bar.leaflet-control.unselectable.text-monospace(v-if="_.keys(visible).length")
@@ -82,6 +90,7 @@ block content
       .d-flex
         small.mx-auto(@click="open = !open") {{ open ? '收合' : '展開' }}
         i.fa.fa-info-circle.fa-2x.text-primary.icon-info(@click="btnInfo")
+          .red-dot(v-if="h.contentVersion !== info.contentVersion")
     #map
 
 block script
@@ -98,17 +107,30 @@ block script
       el: '#app',
       data: {
         nameMap: {
-          tcmTelemedicines: '視訊診療/清冠一號公費(中醫)',
+          tcmTelemedicines: '中醫視訊診所查詢',
           testkits: '新冠肺炎快篩試劑銷售',
         },
         mapZoom: 15,
         open: true,
         visible: {},
         info: {
-          version: 'v2.2',
+          contentVersion: 1, // 資訊欄內容有更新時要加 1
+          version: 'v2.3',
+        },
+        h: {
+          contentVersion: 0,
         },
       },
       async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON.stringify(this.h))
+        }, { deep: true })
+
         try {
           gtag('event', 'screen_view', { screen_name: 'Covid 19 快篩試劑及中醫診所地圖' })
           this.initMap()
@@ -155,9 +177,17 @@ block script
           location.href = url
         },
         async btnInfo () {
+          this.$set(this.h, 'contentVersion', this.info.contentVersion)
           await Swal.fire({
             title: '相關資訊',
-            text: `版本：${this.info.version}`,
+            html: `<div class="text-monospace text-left">
+              <p class="mt-0 mb-2"><strong>資料來源</strong>
+              <ul class="pl-4 my-1">
+                <li><small>中華民國中醫師公會全國聯合會<a href="02-29594939">(02)2959-4939</a></small></li>
+                <li><small><a href="https://data.nhi.gov.tw/">健康保險資料開放服務</a></small></li>
+              </ul>
+              <p class="mt-0 mb-2"><strong>版本：</strong>${this.info.version}</p>
+            </div>`,
           })
         },
         async renderMap (datas) {
@@ -292,12 +322,13 @@ block script
           const rows = await this.getCsv(csv)
           return _.filter(await Promise.all(_.map(rows, async row => {
             try {
-              row = _.pick(row, ['address', 'lat', 'lng', 'name', 'phone'])
+              row = _.pick(row, ['address', 'lat', 'lng', 'name', 'phone', 'open'])
               return await joi.object({
                 address: joi.string().empty('').optional(),
                 lat: joi.number().min(21).max(28).empty('0').required(),
                 lng: joi.number().min(117).max(123).empty('0').required(),
                 name: joi.string().empty('').required(),
+                open: joi.number().valid(0, 1).required(),
                 phone: joi.string().empty('').optional(),
               }).validateAsync(row, { stripUnknown: true })
             } catch (err) {
@@ -305,7 +336,7 @@ block script
               console.error(err)
               return null
             }
-          })))
+          })), { open: 1 })
         },
         async getTestkitsAll () {
           const rows = await this.getCsv('https://taichunmin.idv.tw/covid19-testkit-maps-crawler/stores0430.csv')
