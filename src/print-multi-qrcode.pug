@@ -1,0 +1,123 @@
+extends /layout/default
+
+block beforehtml
+  - const title = '在紙上一次印多個 QRCode'
+
+block style
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:site_name", content="筆記國度")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content="https://taichunmin.idv.tw/pug/print-multi-qrcode.html")
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      .qrcode-title
+        letter-spacing: -1px
+        line-height: 1.1
+        font-size: .875rem
+      @media print
+        .pagebreak
+          page-break-before: always
+
+block content
+  #app.container.text-monospace(v-cloak)
+    .card.my-3.d-print-none
+      .card-header= title
+      .card-body
+        .from-group
+          label QRCode 資料
+          textarea.form-control.form-control-sm(v-model="rawdata", rows="15", style="font-size: .75rem")
+          small.text-muted 請直接從 Excel 複製貼上，每行 1 筆資料，第 1 欄請填 QRCode 內容，剩下的欄位都是標題文字。
+        .form-inline.mt-2
+          button.btn.btn-primary(type="button", @click="btnPrint") 列印
+          select.ml-2.form-control(v-model.number="h.rows")
+            option(v-for="rows of 9", :value="rows") 每頁 {{ rows }} 排
+          select.ml-2.form-control(v-model.number="h.cols")
+            option(v-for="cols of 9", :value="cols") 每排 {{ cols }} 個
+    table.mb-0.d-none.d-print-table.table.table-bordered.pagebreak(v-for="pages of _.chunk(qrcodes, h.rows * h.cols)")
+      tr(v-for="cols of _.chunk(pages, h.cols)")
+        td.px-4.pt-4.pb-3(v-for="qrcode of cols", :style="{width: `${100 / h.cols}%`}")
+          .d-flex.flex-column.align-items-center
+            .w-100.mb-2(v-html="qrcode.svg")
+            .qrcode-title(v-for="title of qrcode.titles") {{ title }}
+
+block script
+  script(crossorigin="anonymous", src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js")
+  script.
+    window.sleep = t => new Promise(resolve => setTimeout(resolve, t))
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        qrcodes: [],
+        rawdata: '',
+        h: {
+          cols: 4,
+          rows: 5,
+        },
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+      },
+      methods: {
+        async btnPrint () {
+          this.showLoading('請稍候', '正在產生 QRCode')
+          const qrcodes = _.compact(await Promise.all(_.map(this.parseTsv(this.rawdata), async row => {
+            try {
+              const [qrcode, ...titles] = _.map(row, _.trim)
+              if (!qrcode) throw new Error('qrcode is required')
+              return {
+                qrcode,
+                svg: await this.textToQrSvg(qrcode),
+                titles,
+              }
+            } catch (err) {
+              return null
+            }
+          })))
+          // 如果 qrcodes 的數量不是一頁數量的倍數，就需補足
+          const pageSize = this.h.cols * this.h.rows
+          const padSize = pageSize - 1 - (qrcodes.length - 1) % pageSize
+          if (padSize) {
+            const titleSize = _.first(qrcodes)?.titles?.length ?? 1
+            qrcodes.push(..._.times(padSize, () => ({
+              svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" />',
+              titles: _.times(titleSize, () => ' '),
+            })))
+          }
+          this.$set(this, 'qrcodes', qrcodes)
+          await Swal.fire({ icon: 'success', title: '產生成功', text: `共 ${qrcodes.length - padSize} 筆資料` })
+          await window.sleep(1000)
+          window.print()
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+        textToQrSvg: (() => {
+          const config = { margin: 0 }
+          return async text => _.trim(await QRCode.toString(text, config))
+        })(),
+        parseTsv (str) {
+          return _.get(Papa.parse(_.trim(str), {
+            delimiter: '\t',
+            encoding: 'utf8',
+          }), 'data', [])
+        },
+      },
+    })

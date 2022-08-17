@@ -1,0 +1,116 @@
+extends /layout/default
+
+block beforehtml
+  - const title = '微程式刷卡通知'
+
+block style
+  meta(property="fb:app_id", content="2133031763635285")
+  meta(property="og:description", content="若有任何使用上的問題，請與創新前瞻計畫室聯繫。")
+  meta(property="og:image:height", content="512")
+  meta(property="og:image:width", content="512")
+  meta(property="og:image", content="https://i.imgur.com/7F25dCI.png")
+  meta(property="og:locale", content="zh_TW")
+  meta(property="og:site_name", content="筆記國度")
+  meta(property="og:title", content=title)
+  meta(property="og:type", content="website")
+  meta(property="og:url", content="https://lihi1.com/qYLWs")
+  style
+    :sass
+      [v-cloak]
+        display: none
+      body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6
+        font-family: 'Noto Sans TC', sans-serif
+      body
+        background-image: url('https://i.imgur.com/nFMLMdG.png')
+        background-repeat: no-repeat
+        background-position: top
+        background-size: auto 480px
+
+block content
+  #app.my-3.container(v-cloak)
+    h2.mb-3.text-center.text-danger= title
+    img.d-block.w-100.mx-auto(src="https://i.imgur.com/7xIMgXO.png", style="max-width: 580px")
+    .text-monospace
+      .form-group(:class="{'was-validated': !!h.uid}")
+        label(for="h-uid") 員工編號
+        input#h-uid.form-control(type="tel", inputmode="tel", required, pattern="[0-9-]{5,}", v-model="h.uid", placeholder="請輸入您的微程式員工編號")
+      ul.text-danger(style="padding-inline-start: 1.25rem")
+        li 實際出缺勤紀錄請以 Portal 系統為主。
+        li 關於本刷卡通知服務若有申請、使用或解除連動之各項問題，請洽詢創新前瞻計畫室同仁。
+      .form-group.form-check
+        input#h-gdpr.form-check-input(type="checkbox", required, v-model="gdpr")
+        label.form-check-label(for="h-gdpr") 我同意「微程式刷卡通知」服務依#[a(target="_blank", href="https://docs.google.com/presentation/d/1jk2sJg2Xy8YhQLbVAerJtSAmwKaHEReOEOFxBymHEGk/edit?usp=sharing&openExternalBrowser=1") 「個資使用條款聲明」]蒐集、處理及利用我的個人資料。
+      .d-flex
+        a.flex-fill.mr-2.btn.btn-dark.d-flex.justify-content-center.align-items-center(target="_blank", href="https://docs.google.com/presentation/d/1jk2sJg2Xy8YhQLbVAerJtSAmwKaHEReOEOFxBymHEGk/edit?usp=sharing&openExternalBrowser=1") #[span.mr-2.fa.fa-question-circle] 使用說明
+        button.flex-fill.btn.btn-danger.d-flex.justify-content-center.align-items-center(type="button", @click="btnGoogleSignin")
+          span.mr-2.fa.fa-google
+          span 確認送出#[br]進行認證
+      a.mt-3.btn.btn-sm.btn-block.btn-link(href="https://notify-bot.line.me/my/") 如果想要取消刷卡通知請點此
+
+block script
+  script.
+    window.vm = new Vue({
+      el: '#app',
+      data: {
+        gdpr: false,
+        h: {
+          uid: '',
+        },
+      },
+      async mounted () {
+        // 自動儲存功能
+        try {
+          const saved = JSON5.parse(localStorage.getItem(location.pathname))
+          if (saved) this.$set(this, 'h', { ...this.h, ...saved })
+        } catch (err) {}
+        this.$watch('h', () => {
+          localStorage.setItem(location.pathname, JSON5.stringify(this.h))
+        }, { deep: true })
+
+        await this.init()
+      },
+      methods: {
+        async init () {
+          try {
+            // 顯示錯誤訊息
+            const swalcfg = _.fromPairs(_.filter([
+              ['icon', this.param('swalicon')],
+              ['title', this.param('swaltitle')],
+              ['text', this.param('swaltext')],
+            ], row => _.isString(row[1])))
+            if (swalcfg.text) await Swal.fire(swalcfg)
+          } catch (err) {
+            console.err(err)
+            await Swal.fire({ icon: 'error', title: '初始化錯誤', text: err.message })
+          }
+        },
+        async btnGoogleSignin () {
+          try {
+            this.showLoading('請稍候', '驗證中')
+            if (!this.gdpr) return await Swal.fire({ icon: 'error', title: '無法提供刷卡通知', text: '由於您不同意本服務取用您的資料，故無法為您提供服務。' })
+            if (!this.h.uid) throw new Error('員工編號是必填欄位')
+            const url = new URL('https://us-central1-mp-parking-lot.cloudfunctions.net/gcf-doorkeeper-line-http/googleopenid')
+            url.searchParams.set('uid', this.h.uid)
+            url.searchParams.set('t', Date.now())
+            location.href = url.href
+            return await new Promise(resolve => {}) // 永遠不會結束的 Promise
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({ icon: 'error', title: '驗證失敗', text: err.message })
+          }
+        },
+        showLoading (title, text) {
+          Swal.fire({
+            title,
+            text,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => { Swal.showLoading() },
+          })
+        },
+        param (key, defaultValue) {
+          const val = new URL(location).searchParams.get(key)
+          return _.isNil(val) ? defaultValue : val
+        },
+      },
+    })

@@ -15,7 +15,6 @@ module.exports = {
     axios: 'readonly',
     CryptoJS: 'readonly',
     dayjs: 'readonly',
-    dayjs: 'readonly',
     gtag: 'readonly',
     joi: 'readonly',
     JSON5: 'readonly',
@@ -23,17 +22,19 @@ module.exports = {
     liff: 'readonly',
     moment: 'readonly',
     Papa: 'readonly',
+    QRCode: 'readonly',
     Qs: 'readonly',
     Swal: 'readonly',
     VConsole: 'readonly',
     Vue: 'readonly',
   },
   parserOptions: {
-    ecmaVersion: 2018,
+    ecmaVersion: 2020,
     sourceType: 'module',
   },
   rules: {
     'eol-last': ['error', 'never'],
+    'multiline-ternary': 0, // 0 = off, 1 = warn, 2 = error
     'no-return-await': 0, // 0 = off, 1 = warn, 2 = error
     'spaced-comment': ['error', 'always', { markers: ['-'] }],
     'comma-dangle': ['error', {
