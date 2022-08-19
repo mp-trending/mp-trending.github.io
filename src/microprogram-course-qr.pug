@@ -95,7 +95,7 @@ block script
           }))
           const course = this.atob(JSON.stringify(this.course))
           const sign = this.atob(CryptoJS.HmacSHA256(`${header}.${course}`, this.secret))
-          const url = new URL('https://taichunmin.idv.tw/pug/microprogram-course.html')
+          const url = new URL('microprogram-course.html', location)
           url.searchParams.set('c', `${header}.${course}.${sign}`)
           return url.href
         },
