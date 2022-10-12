@@ -31,10 +31,7 @@ block content
           .input-group-prepend
             span.input-group-text.justify-content-end 選擇韌體
           select.custom-select(v-model="h.fw")
-            option(value="https://gcs-youbike2-linebot.microprogram.tw/ma2004b-firmwares/hash_MA2004B_v1_0_r3.bin") 正式版 R3
-            option(value="https://gcs-youbike2-linebot.microprogram.tw/ma2004b-firmwares/hash_MA2004B_v1_0_r2.bin") 正式版 R2
-            option(value="https://gcs-youbike2-linebot.microprogram.tw/ma2004b-firmwares/hash_MA2004B_v1_0_t5_3.bin") 測試電壓值 (v1_0_t5_3)
-            option(value="https://gcs-youbike2-linebot.microprogram.tw/ma2004b-firmwares/hash_MA2004B_v1_0_b7.bin") 驗測版 (v1_0_b7)
+            option(v-for="(data, i) of versionDatas" :key="i" :value="data.bin" v-if="data.open") {{ data.title }}
         .was-validated
           .input-group.input-group-sm.mt-2
             .input-group-prepend
@@ -159,6 +156,7 @@ block script
         uuidNotify: '7e400003-b5a3-f393-e0a9-e50e24dcca9e',
         uuidService: '7e400001-b5a3-f393-e0a9-e50e24dcca9e',
         uuidWrite: '7e400002-b5a3-f393-e0a9-e50e24dcca9e',
+        versionDatas: [],
         h: {
           autoNext: true,
           fw: 'https://gcs-youbike2-linebot.microprogram.tw/ma2004b-firmwares/hash_MA2004B_v1_0_r3.bin',
@@ -180,6 +178,7 @@ block script
 
         this.logUpdateSetting = new GoogleFormClass('https://docs.google.com/forms/d/e/1FAIpQLSfiiHf0vgFZ-gVpdz-5LCz51_ZE4pzX6OIShM40nStgq8z3MA/viewform?usp=pp_url&entry.135843282=snBefore&entry.1788349406=snAfter&entry.1455481659=ua&entry.1961450447=setting')
         this.ua = navigator.userAgent
+        await this.init()
       },
       computed: {
         version () {
@@ -188,6 +187,33 @@ block script
         },
       },
       methods: {
+        async init () {
+          const errorText = []
+          try {
+            this.showLoading('請稍候', '取得韌體版本清單中…')
+            const datas = await this.fetchCsvCors('https://docs.google.com/spreadsheets/d/e/2PACX-1vSa3P96lC5UvtKLDMP9arw86TedZoBE9InXG9WIMcEQ703i4rfS9y3adRO9fUmE2G9HjaU0X_rUVhfX/pub?gid=1284962685&single=true&output=csv')
+            if (!datas.length) throw new Error('無任何韌體版本資料')
+
+            _.each(datas, (data, i) => {
+              data.open = _.parseInt(data.open || 1)
+              if (!data.title) errorText.push(`第 ${i + 1} 筆：title 不得為空`)
+              if (!data.bin.match(/hash_MA2004B_([^.]+).bin/)) errorText.push(`第 ${i + 1} 筆：bin 檔連結需為「.../hash_MA2004B_XXX.bin」`)
+            })
+            console.log(datas)
+            if (errorText.length) throw new Error('取得韌體版本清單失敗')
+
+            this.$set(this, 'versionDatas', datas)
+            await Swal.fire({ icon: 'success', title: '取得韌體版本清單成功' })
+          } catch (err) {
+            console.error(err)
+            await Swal.fire({
+              html: errorText.length ? errorText.join('<br>') : err.message,
+              icon: 'error',
+              title: '取得韌體版本清單失敗',
+            })
+            location.reload()
+          }
+        },
         async btnUploadFirmware () {
           try {
             this.showLoading('請稍候', '搜尋裝置及下載韌體中…')
