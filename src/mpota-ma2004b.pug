@@ -334,7 +334,7 @@ block script
               ctx.after[`timestamp${i}`] = ctx.before[`timestamp${i}`]
             }
             await this.bleSetBeacons(ctx.after)
-            await this.bleSetTxPower(0) // +4 dbm
+            await this.bleSetTxPower(ctx.after.txPower) // 0: +4 dbm, 7: -30 dbm
             await this.bleSetAdvInterval(243) // 243 * 0.625 = 151 ms
             this.logTime(`產品序號 ${sn} 參數更新成功`)
 
@@ -404,7 +404,7 @@ block script
             // 增加大約 34.13 天
             for (let i = 0; i < 3; i++) ctx.after[`timestamp${i}`] = this.toHexZerofill(BigInt('0x' + ctx.after[`timestamp${i}`]) + 0x30000n, 16)
             await this.bleSetBeacons(ctx.after)
-            await this.bleSetTxPower(0) // +4 dbm
+            await this.bleSetTxPower(ctx.after.txPower) // 0: +4 dbm, 7: -30 dbm
             await this.bleSetAdvInterval(243) // 243 * 0.625 = 151 ms
             this.logTime(`產品序號 ${sn} 增加時戳成功`)
 
