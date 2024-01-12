@@ -54,6 +54,7 @@ block content
         button.mt-2.btn.btn-block.btn-outline-primary(type="button", @click="btnUploadFirmware") #[span.fa.fa-fw.fa-cloud-upload] 執行韌體更新
         button.mt-2.btn.btn-block.btn-outline-success(type="button", @click="btnUpdateSetting") #[span.fa.fa-fw.fa-cogs] 更新產品參數
         button.mt-2.btn.btn-block.btn-outline-secondary(type="button", @click="btnIncTimestamp") #[span.fa.fa-fw.fa-clock-o] 增加時間戳記
+        button.mt-2.btn.btn-block.btn-outline-info(type="button", @click="btnGetFirmwareInfo") #[span.fa.fa-fw.fa-info-circle] 取得裝置資訊
         button.mt-2.btn.btn-block.btn-outline-danger(type="button", @click="btnReset") #[span.fa.fa-fw.fa-trash-o] 重設本頁資料
     .card.mb-4
       .card-header #[span.fa.fa-fw.fa-flag] Beacon 安裝回報
@@ -212,6 +213,34 @@ block script
               title: '取得韌體版本清單失敗',
             })
             location.reload()
+          }
+        },
+        async btnGetFirmwareInfo () {
+          let info = {}
+          try {
+            this.showLoading('請稍候', '搜尋裝置中…')
+            await this.bleSearchDevice()
+
+            this.showLoading('請稍候', '取得裝置資訊中…')
+            info = {
+              ...await this.bleGetBeacons(),
+              txPower: await this.bleGetTxPower(),
+            }
+
+            await Swal.fire({ icon: 'success', title: '裝置資訊取得成功', html: `
+              sn：${info.sn} </br>
+              txPower：${info.txPower}</br>
+              (hwid, mode)</br>
+              channel_0：${info.hwid0}, ${info.mode0}</br>
+              channel_1：${info.hwid1}, ${info.mode1}</br>
+              channel_2：${info.hwid2}, ${info.mode2}</br>
+              如欲查看更詳細的資訊，請使用<a href="https://campagin.program.com.tw/ma2004b-scanner.html?openExternalBrowser=1">掃描工具</a>
+            `})
+          } catch (err) {
+            console.error(`btnGetFirmwareInfo = ${JSON.stringify(window.errToPlainObj(err))}`)
+            await Swal.fire({ icon: 'error', title: '裝置資訊取得失敗', text: err.message })
+          } finally {
+            await this.bleDisconnect()
           }
         },
         async btnUploadFirmware () {
