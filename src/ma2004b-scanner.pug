@@ -140,7 +140,7 @@ block script
               adc: `${_.round(dv.getUint16(18, false) / 1024 * 3600)} mV (${dv.getUint16(18, false)})`, // adc = 量測值 / 最大值 (1024) * 參考電壓 3600 mV
             }),
           }
-          if (this.isLineBeacon(beacon)) _.set(device, ['beacons', beaconId], beacon)
+          if (this.isLineBeacon(beacon) || this.isMode0SimpleBeacon(beacon)) _.set(device, ['beacons', beaconId], beacon)
           if (_.keys(device?.beacons)?.length) this.$set(this.devices, deviceId, device)
         },
         async btnCopy (text, container = null) {
@@ -153,6 +153,9 @@ block script
           document.execCommand('copy')
           container.removeChild(dom)
           await Swal.fire({ icon: 'success', title: '複製成功' })
+        },
+        isMode0SimpleBeacon (b) { // mode 為 0 才會有 voltage 的值
+          return b?.voltage && b?.hwid === '0000000000'
         },
         isLineBeacon (b) {
           return b?.hwid?.length === 10 && b?.hwid !== '0000000000'
@@ -198,6 +201,15 @@ block script
             rssi: _.random(-90, -30),
             serviceData: {
               get: () => new DataView(this.u8FromHex('0201deadbeef7f5cf2a4230001018c194fe41d').buffer),
+            },
+          })
+        },
+        fakeMode0SimpleBeacon () { // NOTE: hwid 為 0000000000
+          this.onAdvertisementReceived({
+            device: { id: 'fake', name: 'LE_00_FAKE' },
+            rssi: _.random(-90, -30),
+            serviceData: {
+              get: () => new DataView(this.u8FromHex('0200000000007F0E2224320052010C7D0C7D038D').buffer),
             },
           })
         },
