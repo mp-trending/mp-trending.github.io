@@ -16,6 +16,16 @@ yarn dev
 * 開發環境預設網址: <https://localhost:3000>
 * 開發環境是自簽署憑證，若使用 Google Chrome 可輸入 `thisisunsafe` 跳過
 
+### 如何在手機上測試
+
+因此專案沒有測試環境，若需在手機上測試，需先在專案內安裝 ngrok.exe
+
+```
+yarn dev
+
+yarn ngrok
+```
+
 ## GitHub Action 設定 (正式站)
 
 * `Secret`
