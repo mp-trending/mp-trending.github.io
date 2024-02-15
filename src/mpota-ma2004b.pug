@@ -225,11 +225,13 @@ block script
             info = {
               ...await this.bleGetBeacons(),
               txPower: await this.bleGetTxPower(),
+              advInterval: await this.bleGetAdvInterval(),
             }
 
             await Swal.fire({ icon: 'success', title: '裝置資訊取得成功', html: `
               sn：${info.sn} </br>
               txPower：${info.txPower}</br>
+              advInterval：${info.advInterval}</br>
               (hwid, mode)</br>
               channel_0：${info.hwid0}, ${info.mode0}</br>
               channel_1：${info.hwid1}, ${info.mode1}</br>
@@ -364,7 +366,7 @@ block script
             }
             await this.bleSetBeacons(ctx.after)
             await this.bleSetTxPower(ctx.after.txPower) // 0: +4 dbm, 7: -30 dbm
-            await this.bleSetAdvInterval(243) // 243 * 0.625 = 151 ms
+            await this.bleSetAdvInterval(ctx.after.advInterval) // 80: 50ms, 800: 500ms，實際間隔秒數需將數值乘上 0.625
             this.logTime(`產品序號 ${sn} 參數更新成功`)
 
             // 安裝回報
@@ -434,7 +436,7 @@ block script
             for (let i = 0; i < 3; i++) ctx.after[`timestamp${i}`] = this.toHexZerofill(BigInt('0x' + ctx.after[`timestamp${i}`]) + 0x30000n, 16)
             await this.bleSetBeacons(ctx.after)
             await this.bleSetTxPower(ctx.after.txPower) // 0: +4 dbm, 7: -30 dbm
-            await this.bleSetAdvInterval(243) // 243 * 0.625 = 151 ms
+            await this.bleSetAdvInterval(ctx.after.advInterval) // 80: 50ms, 800: 500ms，實際間隔秒數需將數值乘上 0.625
             this.logTime(`產品序號 ${sn} 增加時戳成功`)
 
             // 儲存產品參數更新紀錄
@@ -712,7 +714,9 @@ block script
           this.verifyResult(res, 'txPower 設定失敗')
         },
         async bleSetAdvInterval (advInterval) {
+          advInterval = _.parseInt(advInterval)
           if (!_.isSafeInteger(advInterval)) throw new Error('advInterval 有誤')
+          if (!_.inRange(advInterval, 80, 801)) throw new Error('advInterval 必須介於 80 到 800 之間')
           const req = this.bleNewRequest25({ cmd: 0x26, len: 4 })
           req.body.setUint32(0, advInterval)
           const res = await this.bleSendRequest({ req })
