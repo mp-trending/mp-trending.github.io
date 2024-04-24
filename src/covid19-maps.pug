@@ -2,8 +2,8 @@ extends /layout/default
 
 block beforehtml
   -
-    const title = 'COVID-19 中醫視訊診療及快篩地圖'
-    const description = 'COVID-19 中醫視訊診療及快篩地圖'
+    const title = 'COVID-19 中醫視訊診療地圖'
+    const description = 'COVID-19 中醫視訊診療地圖'
 
 block style
   meta(name="description" content=description)
@@ -107,14 +107,14 @@ block script
       data: {
         nameMap: {
           tcmTelemedicines: '中醫視訊診所查詢',
-          testkits: '新冠肺炎快篩試劑銷售',
+          //- testkits: '新冠肺炎快篩試劑銷售',
         },
         mapZoom: 15,
         open: true,
         visible: {},
         info: {
-          contentVersion: 1, // 資訊欄內容有更新時要加 1
-          version: 'v2.3',
+          contentVersion: 2, // 資訊欄內容有更新時要加 1
+          version: 'v3.0',
         },
         h: {
           contentVersion: 0,
@@ -155,15 +155,16 @@ block script
         },
         async init () {
           this.showLoading('讀取中', '請稍候')
-          const [tcmTelemedicines, testkits, testkitsAll] = await Promise.all([
-            this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
-            this.getTestkits(),
-            this.getTestkitsAll(),
-          ])
+          //- const [tcmTelemedicines, testkits, testkitsAll] = await Promise.all([
+          //-   this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
+          //-   this.getTestkits(),
+          //-   this.getTestkitsAll(),
+          //- ])
+          const tcmTelemedicines = await this.getTcms('https://docs.google.com/spreadsheets/d/e/2PACX-1vT8DLtC15TFAUZouFmbL6KrqTKSrMdYKPaMAHNQs2wZIvYcicKzw_z37qREC2Ae-OfFliL3wG0ktzqy/pub?gid=1114924453&single=true&output=csv'),
 
           await this.renderMap({
             tcmTelemedicines,
-            testkits: _.uniqBy([...testkits, ...testkitsAll], 'id'),
+            //- testkits: _.uniqBy([...testkits, ...testkitsAll], 'id'),
           })
           Swal.close()
         },
@@ -207,29 +208,29 @@ block script
           }
 
           const itemPopup = (item, type) => {
-            let html
             const container = $('<div />')
-            if (type === 'testkits') { // 快篩試劑
-              html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
-              <div class="text-monospace">
-                <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
-                <table class="mb-2 table table-sm table-borderless table-popup text-monospace">
-                  ${item.phone ? `<tr><th>電話：</th><td><a href="${toTel(item.phone)}">${item.phone}</a></td></tr>` : ''}
-                  <tr><th>地址：</th><td>${item.address}</td></tr>
-                  ${item.ps ? `<tr><th>備註：</th><td>${item.ps}</td></tr>` : ''}
-                  <tr><th>更新：</th><td>${item.updated_at || '未知'}</td></tr>
-                </table>
-                <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
-              </div>`
-            } else if (type === 'tcmTelemedicines') { // 中醫視訊看診
-              html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+            //- if (type === 'testkits') { // 快篩試劑
+            //-   html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
+            //-   <div class="text-monospace">
+            //-     <p class="mt-0 mb-2"><strong>快篩試劑：</strong>${item.label}<span class="badge badge-pill badge-success ml-1">${item.count}</span></p>
+            //-     <table class="mb-2 table table-sm table-borderless table-popup text-monospace">
+            //-       ${item.phone ? `<tr><th>電話：</th><td><a href="${toTel(item.phone)}">${item.phone}</a></td></tr>` : ''}
+            //-       <tr><th>地址：</th><td>${item.address}</td></tr>
+            //-       ${item.ps ? `<tr><th>備註：</th><td>${item.ps}</td></tr>` : ''}
+            //-       <tr><th>更新：</th><td>${item.updated_at || '未知'}</td></tr>
+            //-     </table>
+            //-     <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
+            //-   </div>`
+            //- } else if (type === 'tcmTelemedicines') {
+              // 中醫視訊看診
+              const html = `<h6 class="mb-0 text-center font-weight-bold">${item.name}</h6><hr class="my-2">
               <div class="text-monospace">
                 <p class="mt-0 mb-2 text-center text-danger font-weight-bold">視訊診療，經醫師診斷開立清冠一號(公費)</p>
                 ${item.phone ? `<p class="mt-0 mb-2"><strong>電話：</strong><a href="${toTel(item.phone)}">${item.phone}</a></p>` : ''}
                 <p class="mt-0 mb-2"><strong>地址：</strong>${item.address}</p>
                 <a class="btn btn-dark btn-sm btn-block text-white my-auto btn-block onclick-maps", href="${toGoogleMap(item)}", target="_blank">Google 導航</a>
               </div>`
-            }
+            //- }
             container.on('click', '.onclick-maps', () => { gtag('event', 'click', { link_id: `${type}_${item.name}` }) })
             container.html(html)
             return container[0]
